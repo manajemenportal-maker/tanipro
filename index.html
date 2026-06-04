@@ -164,6 +164,31 @@
       .wrap{padding-top:62px}
     }
 
+  
+    /* FINAL NAV + ADMIN FIX */
+    .admin-mini-access{display:none!important}
+    .admin-mini-access.show{display:inline-flex!important}
+    .nav-page{position:fixed;inset:0;background:rgba(17,24,39,.55);z-index:160;display:none;align-items:stretch;justify-content:center;padding:18px}
+    .nav-page.show{display:flex}
+    .nav-page-panel{width:min(1120px,96vw);max-height:92vh;background:#fff;border-radius:24px;overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.28);padding:22px}
+    .nav-page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
+    .nav-page-head h2{margin:0;font-size:26px}
+    .nav-page-head p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.5}
+    .nav-close{border:0;background:#f3f4f6;border-radius:999px;width:42px;height:42px;font-size:24px;cursor:pointer}
+    .nav-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .nav-card{border:1px solid var(--line);border-radius:18px;padding:16px;background:#fff;cursor:pointer;transition:.2s}
+    .nav-card:hover{box-shadow:0 16px 36px rgba(0,0,0,.09);transform:translateY(-2px)}
+    .nav-card b{display:block;font-size:16px;margin-bottom:7px}
+    .nav-card span{display:block;font-size:13px;color:var(--muted);line-height:1.45}
+    .nav-card button{margin-top:12px;border:0;background:var(--orange);color:#fff;border-radius:999px;padding:10px 13px;font-weight:900;cursor:pointer}
+    .bottom-menu-active-hint{position:fixed;left:18px;bottom:18px;background:#111827;color:#fff;border-radius:999px;padding:10px 13px;font-size:12px;font-weight:900;z-index:83;box-shadow:0 12px 28px rgba(0,0,0,.18)}
+    @media(max-width:760px){
+      .nav-grid{grid-template-columns:1fr}
+      .nav-page{padding:10px}
+      .nav-page-panel{border-radius:18px;padding:16px}
+      .bottom-menu-active-hint{display:none}
+    }
+
   </style>
 </head>
 <body>
@@ -1314,6 +1339,255 @@ function escapeHTML(v){
       adminToolbar.prepend(btn);
     }
   });
+})();
+</script>
+
+
+  <div class="nav-page" id="navPageModal" onclick="closeNavPage(event)">
+    <section class="nav-page-panel" onclick="event.stopPropagation()">
+      <div class="nav-page-head">
+        <div>
+          <h2 id="navPageTitle">Menu</h2>
+          <p id="navPageDesc">Pilih menu turunan untuk membuka fitur yang dibutuhkan.</p>
+        </div>
+        <button class="nav-close" onclick="closeNavPage()">×</button>
+      </div>
+      <div class="nav-grid" id="navPageGrid"></div>
+    </section>
+  </div>
+  <div class="bottom-menu-active-hint">Menu bawah aktif</div>
+
+
+<script>
+// FINAL NAV + ADMIN FIX SCRIPT
+(function(){
+  const menuData = {
+    home: {
+      title: 'Home',
+      desc: 'Kembali ke halaman utama marketplace TANI PRO.',
+      items: [
+        ['Beranda Marketplace','Lihat tampilan utama katalog produk dan supplier.','scroll:top'],
+        ['Kategori Produk','Buka daftar kategori alat pertanian.','nav:categories'],
+        ['Produk Rekomendasi','Lihat produk yang tampil di halaman utama.','scroll:products']
+      ]
+    },
+    search: {
+      title: 'Search / Pencarian',
+      desc: 'Menu pencarian produk, supplier, dan kategori.',
+      items: [
+        ['Cari Produk','Fokus ke kolom pencarian produk.','focus:searchInput'],
+        ['Tractor','Filter produk kategori tractor.','filter:tractor'],
+        ['Pump','Filter produk kategori pump.','filter:pump'],
+        ['Harvester','Filter produk kategori harvester.','filter:harvester']
+      ]
+    },
+    products: {
+      title: 'Products / Produk',
+      desc: 'Kelola dan lihat produk TANI PRO.',
+      items: [
+        ['Semua Produk','Tampilkan seluruh produk katalog.','filter:all'],
+        ['Produk Saya','Buka Akun Saya untuk tambah produk supplier.','account:products'],
+        ['Upload Product','Buka form produk supplier di Akun Saya.','account:products'],
+        ['Agricultural Machinery','Lihat bagian produk utama.','scroll:products']
+      ]
+    },
+    rfq: {
+      title: 'RFQ / Request Quotation',
+      desc: 'Kirim permintaan penawaran atau cek inquiry.',
+      items: [
+        ['Buat RFQ','Buka form Request Quotation.','rfq:open'],
+        ['RFQ Saya','Buka riwayat RFQ / inquiry di Akun Saya.','account:rfq'],
+        ['Contact Supplier','Hubungi supplier melalui inquiry.','rfq:open']
+      ]
+    },
+    categories: {
+      title: 'All Categories',
+      desc: 'Kategori utama marketplace alat pertanian.',
+      items: [
+        ['Tractors','Filter katalog traktor.','filter:tractor'],
+        ['Harvesting Machinery','Filter combine harvester.','filter:harvester'],
+        ['Irrigation Pumps','Filter pompa irigasi.','filter:pump'],
+        ['Sprayers','Filter sprayer.','filter:sprayer'],
+        ['Spare Parts','Filter spare part.','filter:parts']
+      ]
+    },
+    supplier: {
+      title: 'Supplier Center',
+      desc: 'Menu untuk supplier mendaftar dan mengelola akun.',
+      items: [
+        ['Daftar Supplier','Buka form data perusahaan di Akun Saya.','account:company'],
+        ['Produk Saya','Kelola produk supplier.','account:products'],
+        ['Status Verifikasi','Cek status supplier di Akun Saya.','account:company']
+      ]
+    },
+    support: {
+      title: 'Support',
+      desc: 'Pusat bantuan, pengiriman, pembayaran, dan inquiry.',
+      items: [
+        ['Help Center','Buka pusat bantuan.','info:help'],
+        ['Shipping','Informasi pengiriman unit besar dan spare part.','info:shipping'],
+        ['Payment Protection','Informasi keamanan pembayaran.','info:payment'],
+        ['Manage Inquiry','Buka RFQ / inquiry user.','account:rfq']
+      ]
+    }
+  };
+
+  function qs(id){return document.getElementById(id)}
+  function closeAllPages(){
+    const m=qs('navPageModal'); if(m){m.classList.remove('show');m.style.display='none'}
+  }
+  window.closeNavPage=function(e){
+    if(e && e.target && e.target.id!=='navPageModal') return;
+    closeAllPages();
+  }
+  window.openNavPage=function(type){
+    const data = menuData[type] || menuData.home;
+    const modal=qs('navPageModal'), title=qs('navPageTitle'), desc=qs('navPageDesc'), grid=qs('navPageGrid');
+    if(!modal||!title||!desc||!grid) return;
+    title.textContent=data.title;
+    desc.textContent=data.desc;
+    grid.innerHTML=data.items.map(([t,d,act])=>`<div class="nav-card" onclick="runMenuAction('${act}')"><b>${t}</b><span>${d}</span><button>Buka</button></div>`).join('');
+    modal.classList.add('show'); modal.style.display='flex';
+  }
+  window.runMenuAction=function(action){
+    closeAllPages();
+    const [type,value]=(action||'').split(':');
+    if(type==='scroll'){
+      if(value==='top') window.scrollTo({top:0,behavior:'smooth'});
+      else {
+        const el=document.querySelector('.section') || document.getElementById('productGrid');
+        if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+      }
+    }
+    if(type==='focus'){
+      const el=qs(value); if(el){el.focus(); el.scrollIntoView({behavior:'smooth',block:'center'});}
+    }
+    if(type==='filter'){
+      if(value==='all' && typeof renderProducts==='function') renderProducts();
+      else if(typeof applyCat==='function') applyCat(value);
+      const el=document.querySelector('.section'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+    if(type==='account'){
+      if(typeof openAccountCenter==='function') openAccountCenter();
+      setTimeout(()=>{
+        const map={profile:'profile',company:'company',products:'products',rfq:'rfq',security:'security'};
+        const tab=map[value]||value;
+        const btn=[...document.querySelectorAll('.account-tabs button')].find(b=>(b.textContent||'').toLowerCase().includes(tab==='company'?'perusahaan':tab==='products'?'produk':tab==='rfq'?'rfq':'profil'));
+        if(typeof showAccountTab==='function') showAccountTab(tab,btn);
+      },120);
+    }
+    if(type==='rfq'){
+      if(typeof openRFQModalClean==='function') openRFQModalClean();
+      else alert('Form RFQ akan dibuka setelah modul RFQ dirapikan.');
+    }
+    if(type==='nav') openNavPage(value);
+    if(type==='info'){
+      const msg={
+        help:'Help Center: nanti berisi panduan pembeli, supplier, RFQ, dan pembayaran.',
+        shipping:'Shipping: nanti berisi pengiriman traktor, pompa, spare part, dan alat pertanian.',
+        payment:'Payment Protection: nanti berisi mekanisme pembayaran aman dan verifikasi order.'
+      };
+      alert(msg[value]||'Informasi belum tersedia.');
+    }
+  }
+
+  window.revealAdminLocation=function(){
+    const mini=qs('adminMiniAccess');
+    if(mini){
+      mini.classList.add('show');
+      mini.style.display='inline-flex';
+      localStorage.setItem('taniProAdminUnlocked','yes');
+      alert('Admin muncul di header kanan. Klik tombol “⚙️ Admin”.');
+    }
+  }
+
+  const oldUnlock=window.unlockAdminMenu;
+  window.unlockAdminMenu=function(){
+    try{ if(typeof oldUnlock==='function') oldUnlock(); }catch(e){}
+    const mini=qs('adminMiniAccess');
+    if(mini){
+      mini.classList.add('show');
+      mini.style.display='inline-flex';
+    }
+    localStorage.setItem('taniProAdminUnlocked','yes');
+  }
+
+  function bindFinalMenu(){
+    const logo=qs('brandLogo') || document.querySelector('.logo-brand');
+    let clicks=0,timer=null;
+    if(logo){
+      logo.onclick=function(e){
+        e.preventDefault();
+        clicks++;
+        clearTimeout(timer);
+        timer=setTimeout(()=>clicks=0,1200);
+        if(clicks>=3){
+          clicks=0; clearTimeout(timer);
+          window.unlockAdminMenu();
+          alert('Admin aktif. Tombol “⚙️ Admin” ada di header kanan.');
+        }
+      }
+    }
+
+    const mini=qs('adminMiniAccess');
+    if(mini){
+      mini.onclick=function(e){e.preventDefault(); if(typeof openSupplierAdmin==='function') openSupplierAdmin();}
+      if(localStorage.getItem('taniProAdminUnlocked')==='yes'){
+        mini.classList.add('show');
+        mini.style.display='inline-flex';
+      } else {
+        mini.classList.remove('show');
+        mini.style.display='none';
+      }
+    }
+
+    // Header/nav clickable menus
+    document.querySelectorAll('.nav-inner span,.nav-inner a').forEach(el=>{
+      const t=(el.textContent||'').toLowerCase();
+      el.style.cursor='pointer';
+      if(t.includes('all categories')) el.onclick=()=>openNavPage('categories');
+      else if(t.includes('featured')) el.onclick=()=>openNavPage('products');
+      else if(t.includes('trade')) el.onclick=()=>openNavPage('rfq');
+      else if(t.includes('buyer')) el.onclick=()=>openNavPage('rfq');
+      else if(t.includes('help')) el.onclick=()=>openNavPage('support');
+      else if(t.includes('supplier')) el.onclick=()=>openNavPage('supplier');
+      else if(t.includes('ready')||t.includes('machinery')||t.includes('agriculture')||t.includes('construction')||t.includes('spare')||t.includes('local')) el.onclick=()=>openNavPage('products');
+    });
+
+    // Bottom mobile menu
+    document.querySelectorAll('.mobilebar a').forEach((a,i)=>{
+      a.style.cursor='pointer';
+      a.onclick=function(e){
+        e.preventDefault();
+        const txt=(a.textContent||'').toLowerCase();
+        if(txt.includes('home')||i===0) openNavPage('home');
+        else if(txt.includes('search')||txt.includes('cari')||i===1) openNavPage('search');
+        else if(txt.includes('product')||txt.includes('produk')||i===2) openNavPage('products');
+        else if(txt.includes('rfq')||i===3) openNavPage('rfq');
+      }
+    });
+
+    // Footer menu active
+    document.querySelectorAll('.footer a').forEach(a=>{
+      a.style.cursor='pointer';
+      const txt=(a.textContent||'').toLowerCase();
+      a.onclick=function(e){
+        e.preventDefault();
+        if(txt.includes('request')) openNavPage('rfq');
+        else if(txt.includes('track')) openNavPage('rfq');
+        else if(txt.includes('find')) openNavPage('supplier');
+        else if(txt.includes('become')) openNavPage('supplier');
+        else if(txt.includes('upload')) runMenuAction('account:products');
+        else if(txt.includes('manage')) runMenuAction('account:rfq');
+        else if(txt.includes('help')) openNavPage('support');
+        else if(txt.includes('shipping')) runMenuAction('info:shipping');
+        else if(txt.includes('payment')) runMenuAction('info:payment');
+      }
+    });
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindFinalMenu);
+  else bindFinalMenu();
 })();
 </script>
 
