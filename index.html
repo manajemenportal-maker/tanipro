@@ -330,6 +330,11 @@
     .tp-product-card .media-strip img{width:100%;height:58px;object-fit:cover;border-radius:8px;background:#f3f4f6}
     @media(max-width:760px){.tp-media-grid{grid-template-columns:repeat(2,1fr)}}
 
+  
+    /* FIREBASE STORAGE UPLOAD STATUS */
+    .tp-upload-status{margin-top:10px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;padding:10px 12px;font-size:12px;line-height:1.45;display:none}
+    .tp-upload-status.show{display:block}
+
   </style>
 </head>
 <body>
@@ -816,6 +821,37 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+</script>
+
+<script type="module">
+  import {
+    getStorage,
+    ref as storageRef,
+    uploadBytes,
+    getDownloadURL
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+
+  async function waitTaniFirebase(){
+    for(let i=0;i<30;i++){
+      if(window.taniProFirebase && window.taniProFirebase.app) return window.taniProFirebase;
+      await new Promise(r=>setTimeout(r,150));
+    }
+    throw new Error("Firebase app belum siap untuk Storage.");
+  }
+
+  waitTaniFirebase().then(f=>{
+    const storage = getStorage(f.app);
+    window.taniProStorage = {
+      storage,
+      storageRef,
+      uploadBytes,
+      getDownloadURL,
+      enabled:true
+    };
+    console.log("TANI PRO Firebase Storage connected");
+  }).catch(err=>{
+    console.warn("Firebase Storage belum siap:", err);
+  });
 </script>
 
 <script>
@@ -2319,6 +2355,7 @@ function escapeHTML(v){
                 <input id="tpProdVideo" type="file" accept="video/*" onchange="tpPreviewMedia(event,'Video','video')">
               </label>
             </div>
+            <div class="tp-upload-status" id="tpUploadStatus">Menunggu upload...</div>
 
             <div class="tp-grid" style="margin-top:14px">
               <div class="tp-field"><label>Nama Produk</label><input id="tpProdName" placeholder="Traktor 4WD 50HP"></div>
@@ -2863,6 +2900,253 @@ function escapeHTML(v){
       alert('Supplier approved. Produk draft supplier otomatis menjadi ACTIVE.');
     }
   };
+})();
+</script>
+
+
+<script>
+(function(){
+  window.tpSelectedProductFiles = {photos:[null,null,null], video:null};
+  window.tpSelectedProductPreviews = {photos:['','',''], video:''};
+
+  function readJSON(key, fallback){
+    try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));}catch(e){return fallback;}
+  }
+  function writeJSON(key, value){localStorage.setItem(key, JSON.stringify(value));}
+  function val(id){const el=document.getElementById(id);return el?el.value.trim():'';}
+  function currentUser(){return readJSON('tp_current_user', null);}
+  function supplierIsApproved(user){
+    const st=(user?.supplierStatus || '').toLowerCase();
+    return st==='approved' || st==='verified' || user?.supplierVerified===true;
+  }
+  function setUploadStatus(msg, show=true){
+    const el=document.getElementById('tpUploadStatus');
+    if(el){
+      el.innerHTML=msg;
+      el.classList.toggle('show', show);
+    }
+  }
+  async function waitStorage(){
+    for(let i=0;i<40;i++){
+      if(window.taniProStorage && window.taniProStorage.enabled) return window.taniProStorage;
+      await new Promise(r=>setTimeout(r,150));
+    }
+    throw new Error('Firebase Storage belum siap. Cek koneksi internet / Firebase SDK.');
+  }
+  async function waitFirestore(){
+    for(let i=0;i<40;i++){
+      if(window.firebaseAdd || (window.taniProFirebase && window.taniProFirebase.addDoc)) return true;
+      await new Promise(r=>setTimeout(r,150));
+    }
+    throw new Error('Firestore belum siap.');
+  }
+
+  window.tpPreviewMedia = function(e,idx,type){
+    const file=e.target.files && e.target.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const data=ev.target.result;
+      if(type==='video'){
+        window.tpSelectedProductFiles.video=file;
+        window.tpSelectedProductPreviews.video=data;
+        const box=document.getElementById('tpMediaPreviewVideo');
+        if(box) box.innerHTML=`<video src="${data}" muted controls></video>`;
+      }else{
+        const n=Number(idx)-1;
+        window.tpSelectedProductFiles.photos[n]=file;
+        window.tpSelectedProductPreviews.photos[n]=data;
+        const box=document.getElementById('tpMediaPreview'+idx);
+        if(box) box.innerHTML=`<img src="${data}" alt="Foto ${idx}">`;
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.tpClearProductForm = function(){
+    ['tpProdName','tpProdPrice','tpProdMoq','tpProdLocation','tpProdStock','tpProdWarranty','tpProdDesc'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+    const cat=document.getElementById('tpProdCat'); if(cat) cat.value='tractor';
+    const cond=document.getElementById('tpProdCondition'); if(cond) cond.value='new';
+    ['tpProdPhoto1','tpProdPhoto2','tpProdPhoto3','tpProdVideo'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+    ['1','2','3'].forEach(i=>{const box=document.getElementById('tpMediaPreview'+i); if(box) box.innerHTML='<span>📷</span>';});
+    const v=document.getElementById('tpMediaPreviewVideo'); if(v) v.innerHTML='<span>🎥</span>';
+    window.tpSelectedProductFiles={photos:[null,null,null],video:null};
+    window.tpSelectedProductPreviews={photos:['','',''],video:''};
+    setUploadStatus('', false);
+  };
+
+  async function uploadProductMedia(productId, user){
+    const storageApi = await waitStorage();
+    const folder = `products/${user.id}/${productId}`;
+    const photoUrls = [];
+
+    for(let i=0;i<3;i++){
+      const file = window.tpSelectedProductFiles.photos[i];
+      if(!file) continue;
+      setUploadStatus(`Mengupload Foto ${i+1} ke Firebase Storage...`);
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${folder}/photo-${i+1}-${Date.now()}.${ext}`;
+      const r = storageApi.storageRef(storageApi.storage, path);
+      await storageApi.uploadBytes(r, file, {contentType:file.type || 'image/jpeg'});
+      const url = await storageApi.getDownloadURL(r);
+      photoUrls.push(url);
+    }
+
+    let videoUrl = '';
+    if(window.tpSelectedProductFiles.video){
+      const file = window.tpSelectedProductFiles.video;
+      setUploadStatus('Mengupload video produk ke Firebase Storage...');
+      const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
+      const path = `${folder}/video-${Date.now()}.${ext}`;
+      const r = storageApi.storageRef(storageApi.storage, path);
+      await storageApi.uploadBytes(r, file, {contentType:file.type || 'video/mp4'});
+      videoUrl = await storageApi.getDownloadURL(r);
+    }
+
+    return {photoUrls, videoUrl};
+  }
+
+  window.tpAddProduct = async function(){
+    const u = currentUser();
+    if(!u) return openAccountCenter();
+
+    const approved = supplierIsApproved(u);
+    const productId = 'PROD-' + Date.now();
+    const hasPhoto = window.tpSelectedProductFiles.photos.some(Boolean);
+    if(!val('tpProdName')) return alert('Nama produk wajib diisi.');
+    if(!hasPhoto) return alert('Minimal Foto 1 wajib diupload.');
+    if(!val('tpProdPrice')) return alert('Harga wajib diisi.');
+    if(!val('tpProdMoq')) return alert('MOQ wajib diisi.');
+
+    const productBase = {
+      id:productId,
+      ownerUserId:u.id,
+      supplierCompany:u.company || '',
+      company:u.company || '',
+      ownerEmail:u.email || '',
+      name:val('tpProdName'),
+      category:val('tpProdCat') || 'tractor',
+      price:val('tpProdPrice'),
+      moq:val('tpProdMoq'),
+      location:val('tpProdLocation'),
+      stock:val('tpProdStock'),
+      condition:val('tpProdCondition'),
+      warranty:val('tpProdWarranty'),
+      description:val('tpProdDesc'),
+      status:approved ? 'active' : 'draft',
+      createdAt:new Date().toISOString(),
+      updatedAt:new Date().toISOString()
+    };
+
+    let uploaded = {photoUrls:[], videoUrl:''};
+
+    try{
+      uploaded = await uploadProductMedia(productId, u);
+    }catch(err){
+      console.error('Upload Firebase Storage gagal:', err);
+      setUploadStatus(`<b>Upload Firebase Storage gagal.</b><br>${err.code || err.message || err}<br>Produk belum dikirim. Cek Storage Rules / bucket / koneksi.`, true);
+      alert('Upload foto/video ke Firebase Storage gagal. Produk belum tayang. Cek Storage Rules.');
+      return;
+    }
+
+    const product = {
+      ...productBase,
+      photos: uploaded.photoUrls,
+      video: uploaded.videoUrl,
+      photoUrls: uploaded.photoUrls,
+      videoUrl: uploaded.videoUrl
+    };
+
+    try{
+      setUploadStatus('Menyimpan data produk ke Firestore...');
+      if(window.firebaseAdd){
+        await firebaseAdd('products', product);
+      }else{
+        await waitFirestore();
+        await firebaseAdd('products', product);
+      }
+    }catch(err){
+      console.error('Firestore products gagal:', err);
+      setUploadStatus(`<b>Media sudah terupload, tapi Firestore gagal.</b><br>${err.code || err.message || err}<br>Cek Firestore Rules.`, true);
+      alert('Foto/video sudah upload, tapi data produk gagal masuk Firestore. Cek Firestore Rules.');
+      return;
+    }
+
+    const list=readJSON('tp_products',[]);
+    list.unshift(product);
+    writeJSON('tp_products',list);
+
+    tpClearProductForm();
+    if(window.tpRenderProducts) tpRenderProducts();
+    if(window.tpRefreshMarketplaceProducts) tpRefreshMarketplaceProducts();
+
+    setUploadStatus('Produk berhasil upload ke Firebase Storage + Firestore.', true);
+    alert(approved ? 'Produk berhasil upload dan langsung tampil di halaman depan.' : 'Produk berhasil upload sebagai DRAFT. Approve supplier dulu agar tayang.');
+  };
+
+  window.tpRenderProducts = function(){
+    const u=currentUser();
+    const box=document.getElementById('tpProductList');
+    if(!u||!box) return;
+    const list=readJSON('tp_products',[]).filter(p=>p.ownerUserId===u.id);
+    if(!list.length){
+      box.innerHTML='<div class="tp-item"><div><b>Belum ada produk</b><small>Upload minimal Foto 1, lengkapi data produk, lalu klik Tambah Produk.</small></div></div>';
+      return;
+    }
+    box.innerHTML=list.map(p=>{
+      const photos=p.photoUrls || p.photos || [];
+      const main=photos[0] || p.photo || '';
+      const pic=main?`<img src="${main}" alt="${p.name}">`:'<span>🚜</span>';
+      const strip=photos.slice(0,3).map(x=>`<img src="${x}" alt="foto">`).join('');
+      const cls=p.status==='active'?'status-active':'status-pending';
+      return `<div class="tp-product-card">
+        <div class="pic">${pic}</div>
+        <div class="body">
+          <b>${p.name}</b>
+          <small>${p.description||'Belum ada deskripsi.'}</small>
+          ${strip?`<div class="media-strip">${strip}</div>`:''}
+          <div class="meta">
+            <em>${p.category||'-'}</em><em>${p.price||'-'}</em><em>${p.moq||'-'}</em><em>${p.location||'-'}</em>
+            <em class="${cls}">${(p.status||'draft').toUpperCase()}</em>
+            ${p.videoUrl||p.video?'<em>VIDEO</em>':''}
+          </div>
+          <small style="margin-top:8px">Stok: ${p.stock||'-'} · Kondisi: ${p.condition||'-'} · Garansi: ${p.warranty||'-'}</small>
+        </div>
+      </div>`;
+    }).join('');
+  };
+
+  window.tpRefreshMarketplaceProducts = function(){
+    const grid=document.getElementById('productGrid');
+    if(!grid) return;
+    const products=readJSON('tp_products',[]).filter(p=>(p.status||'').toLowerCase()==='active' || (p.status||'').toLowerCase()==='approved');
+    grid.querySelectorAll('.supplier-live-product').forEach(el=>el.remove());
+    const html=products.map(p=>{
+      const photos=p.photoUrls || p.photos || [];
+      const photo=photos[0] || p.photo || '';
+      const img=photo?`<img src="${photo}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover">`:(typeof svgIcon==='function'?svgIcon(p.category||'tractor'):'<div style="font-size:52px">🚜</div>');
+      return `<article class="product supplier-live-product" data-cat="${p.category||'supplier'}" data-product-id="${p.id}">
+        <span class="badge">ACTIVE</span>
+        <div class="photo">${img}</div>
+        <div class="product-body">
+          <div class="title">${p.name||'Produk Supplier'}</div>
+          <div class="price">${p.price||'Hubungi supplier'}</div>
+          <div class="moq">${p.moq||'MOQ: -'}</div>
+          <div class="supplier"><span class="verify">✓ Supplier</span><span>${p.supplierCompany||p.company||'TANI PRO Supplier'}</span></div>
+          <div class="actions"><button class="quote" onclick="openRFQModalClean && openRFQModalClean()">Contact supplier</button><button class="chat">💬</button></div>
+        </div>
+      </article>`;
+    }).join('');
+    if(html) grid.insertAdjacentHTML('afterbegin', html);
+    const countText=document.getElementById('countText');
+    if(countText) countText.textContent=grid.querySelectorAll('.product').length+' products shown';
+  };
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',()=>setTimeout(tpRefreshMarketplaceProducts,600));
+  }else{
+    setTimeout(tpRefreshMarketplaceProducts,600);
+  }
 })();
 </script>
 
