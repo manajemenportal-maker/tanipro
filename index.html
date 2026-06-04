@@ -3150,5 +3150,212 @@ function escapeHTML(v){
 })();
 </script>
 
+
+<script>
+/* FINAL FIX: Dashboard Supplier - Tambah Produk */
+(function(){
+  function readJSON(key, fallback){
+    try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));}catch(e){return fallback;}
+  }
+  function writeJSON(key, value){localStorage.setItem(key, JSON.stringify(value));}
+  function val(id){const el=document.getElementById(id);return el?el.value.trim():'';}
+  function currentUser(){return readJSON('tp_current_user', null);}
+  function approved(user){
+    const st=(user?.supplierStatus||'').toLowerCase();
+    return st==='approved'||st==='verified'||user?.supplierVerified===true;
+  }
+  function status(msg, good){
+    let el=document.getElementById('tpUploadStatus');
+    if(!el){
+      const panel=document.getElementById('tpPanelProducts');
+      if(panel){
+        el=document.createElement('div');
+        el.id='tpUploadStatus';
+        el.className='tp-upload-status';
+        panel.insertBefore(el, panel.firstChild.nextSibling);
+      }
+    }
+    if(el){
+      el.innerHTML=msg;
+      el.classList.add('show');
+      el.style.display='block';
+      el.style.background=good?'#ecfdf5':'#eff6ff';
+      el.style.borderColor=good?'#bbf7d0':'#bfdbfe';
+      el.style.color=good?'#047857':'#1d4ed8';
+    }
+  }
+  function getPreviewPhotos(){
+    const arr=[];
+    ['tpMediaPreview1','tpMediaPreview2','tpMediaPreview3','tpProdPhotoPreview'].forEach(id=>{
+      const img=document.querySelector('#'+id+' img');
+      if(img && img.src && !arr.includes(img.src)) arr.push(img.src);
+    });
+    return arr;
+  }
+  function getSelectedFiles(){
+    const photos=[];
+    ['tpProdPhoto1','tpProdPhoto2','tpProdPhoto3'].forEach(id=>{
+      const input=document.getElementById(id);
+      if(input && input.files && input.files[0]) photos.push(input.files[0]);
+    });
+    if(!photos.length && window.tpSelectedProductFiles && Array.isArray(window.tpSelectedProductFiles.photos)){
+      window.tpSelectedProductFiles.photos.forEach(f=>{if(f)photos.push(f);});
+    }
+    const videoInput=document.getElementById('tpProdVideo');
+    const video=(videoInput && videoInput.files && videoInput.files[0]) ? videoInput.files[0] : (window.tpSelectedProductFiles?.video || null);
+    return {photos, video};
+  }
+  async function waitStorage(){
+    for(let i=0;i<20;i++){
+      if(window.taniProStorage && window.taniProStorage.enabled) return window.taniProStorage;
+      await new Promise(r=>setTimeout(r,150));
+    }
+    return null;
+  }
+  async function uploadFiles(productId,user,files){
+    const storage=await waitStorage();
+    if(!storage) throw new Error('Firebase Storage belum siap.');
+    const photoUrls=[];
+    for(let i=0;i<files.photos.length;i++){
+      const file=files.photos[i];
+      status('Upload Foto '+(i+1)+' ke Firebase Storage...');
+      const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
+      const path=`products/${user.id}/${productId}/photo-${i+1}-${Date.now()}.${ext}`;
+      const r=storage.storageRef(storage.storage,path);
+      await storage.uploadBytes(r,file,{contentType:file.type||'image/jpeg'});
+      photoUrls.push(await storage.getDownloadURL(r));
+    }
+    let videoUrl='';
+    if(files.video){
+      status('Upload video ke Firebase Storage...');
+      const ext=(files.video.name.split('.').pop()||'mp4').toLowerCase();
+      const path=`products/${user.id}/${productId}/video-${Date.now()}.${ext}`;
+      const r=storage.storageRef(storage.storage,path);
+      await storage.uploadBytes(r,files.video,{contentType:files.video.type||'video/mp4'});
+      videoUrl=await storage.getDownloadURL(r);
+    }
+    return {photoUrls, videoUrl};
+  }
+  async function saveFirestore(product){
+    if(window.firebaseAdd){
+      await firebaseAdd('products', product);
+      return true;
+    }
+    return false;
+  }
+  function clearForm(){
+    ['tpProdName','tpProdPrice','tpProdMoq','tpProdLocation','tpProdStock','tpProdWarranty','tpProdDesc'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    ['tpProdPhoto1','tpProdPhoto2','tpProdPhoto3','tpProdVideo'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    ['1','2','3'].forEach(i=>{
+      const box=document.getElementById('tpMediaPreview'+i); if(box) box.innerHTML='<span>📷</span>';
+    });
+    const v=document.getElementById('tpMediaPreviewVideo'); if(v) v.innerHTML='<span>🎥</span>';
+    if(window.tpSelectedProductFiles) window.tpSelectedProductFiles={photos:[null,null,null],video:null};
+  }
+
+  window.tpAddProduct = async function(){
+    const u=currentUser();
+    if(!u){
+      alert('Login dulu sebelum tambah produk.');
+      if(window.openAccountCenter) openAccountCenter();
+      return;
+    }
+
+    const name=val('tpProdName');
+    const price=val('tpProdPrice');
+    const moq=val('tpProdMoq');
+    const files=getSelectedFiles();
+    const previews=getPreviewPhotos();
+
+    if(!name) return alert('Nama produk wajib diisi.');
+    if(!files.photos.length && !previews.length) return alert('Minimal Foto 1 wajib diupload.');
+    if(!price) return alert('Harga wajib diisi.');
+    if(!moq) return alert('MOQ wajib diisi.');
+
+    const productId='PROD-'+Date.now();
+    const isApproved=approved(u);
+
+    let photoUrls=[];
+    let videoUrl='';
+
+    try{
+      if(files.photos.length){
+        const uploaded=await uploadFiles(productId,u,files);
+        photoUrls=uploaded.photoUrls;
+        videoUrl=uploaded.videoUrl;
+      }else{
+        photoUrls=previews;
+      }
+    }catch(err){
+      console.warn('Storage gagal, simpan lokal dulu:', err);
+      photoUrls=previews;
+      videoUrl='';
+      status('Storage belum jalan, produk disimpan lokal dulu. Error: '+(err.message||err));
+    }
+
+    const product={
+      id:productId,
+      ownerUserId:u.id,
+      supplierCompany:u.company||'',
+      company:u.company||'',
+      ownerEmail:u.email||'',
+      name,
+      category:val('tpProdCat')||'tractor',
+      price,
+      moq,
+      location:val('tpProdLocation'),
+      stock:val('tpProdStock'),
+      condition:val('tpProdCondition')||'new',
+      warranty:val('tpProdWarranty'),
+      description:val('tpProdDesc'),
+      photos:photoUrls,
+      photoUrls,
+      video:videoUrl,
+      videoUrl,
+      status:isApproved?'active':'draft',
+      createdAt:new Date().toISOString(),
+      updatedAt:new Date().toISOString()
+    };
+
+    const list=readJSON('tp_products',[]);
+    list.unshift(product);
+    writeJSON('tp_products',list);
+
+    try{
+      await saveFirestore(product);
+      status('Produk tersimpan ke database. Status: '+product.status.toUpperCase(), true);
+    }catch(err){
+      console.warn('Firestore gagal:', err);
+      status('Produk tersimpan lokal, tapi Firestore gagal: '+(err.code||err.message||err));
+    }
+
+    clearForm();
+    if(window.tpRenderProducts) tpRenderProducts();
+    if(window.tpRefreshMarketplaceProducts) tpRefreshMarketplaceProducts();
+
+    alert(isApproved ? 'Produk berhasil ditambahkan dan tampil di halaman depan.' : 'Produk berhasil ditambahkan sebagai DRAFT. Approve supplier dulu agar tayang.');
+  };
+
+  function bindAddProductButton(){
+    document.querySelectorAll('button').forEach(btn=>{
+      const t=(btn.textContent||'').toLowerCase();
+      if(t.includes('tambah produk')){
+        btn.onclick=function(e){
+          e.preventDefault();
+          window.tpAddProduct();
+        };
+      }
+    });
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindAddProductButton);
+  else bindAddProductButton();
+})();
+</script>
+
 </body>
 </html>
