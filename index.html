@@ -3357,5 +3357,244 @@ function escapeHTML(v){
 })();
 </script>
 
+
+<script>
+/* FINAL FIX: Edit Produk Supplier */
+(function(){
+  let tpEditingProductId = null;
+
+  function readJSON(key, fallback){
+    try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));}catch(e){return fallback;}
+  }
+  function writeJSON(key, value){localStorage.setItem(key, JSON.stringify(value));}
+  function currentUser(){return readJSON('tp_current_user', null);}
+  function setVal(id,v){const el=document.getElementById(id); if(el) el.value = v || '';}
+  function val(id){const el=document.getElementById(id); return el ? el.value.trim() : '';}
+  function approved(user){
+    const st=(user?.supplierStatus||'').toLowerCase();
+    return st==='approved'||st==='verified'||user?.supplierVerified===true;
+  }
+  function showStatus(msg){
+    let el=document.getElementById('tpUploadStatus');
+    if(!el){
+      const panel=document.getElementById('tpPanelProducts');
+      if(panel){
+        el=document.createElement('div');
+        el.id='tpUploadStatus';
+        el.className='tp-upload-status show';
+        panel.insertBefore(el, panel.firstChild.nextSibling);
+      }
+    }
+    if(el){
+      el.style.display='block';
+      el.classList.add('show');
+      el.innerHTML=msg;
+    }
+  }
+
+  window.tpEditProduct = function(productId){
+    const u=currentUser();
+    const products=readJSON('tp_products',[]);
+    const p=products.find(x=>x.id===productId && (!u || x.ownerUserId===u.id));
+    if(!p) return alert('Produk tidak ditemukan.');
+
+    tpEditingProductId = productId;
+
+    setVal('tpProdName', p.name);
+    setVal('tpProdCat', p.category || 'tractor');
+    setVal('tpProdPrice', p.price);
+    setVal('tpProdMoq', p.moq);
+    setVal('tpProdLocation', p.location);
+    setVal('tpProdStock', p.stock);
+    setVal('tpProdCondition', p.condition || 'new');
+    setVal('tpProdWarranty', p.warranty);
+    setVal('tpProdDesc', p.description);
+
+    const photos = p.photoUrls || p.photos || [];
+    ['1','2','3'].forEach((n,i)=>{
+      const box=document.getElementById('tpMediaPreview'+n);
+      if(box){
+        box.innerHTML = photos[i] ? `<img src="${photos[i]}" alt="Foto ${n}">` : '<span>📷</span>';
+      }
+    });
+
+    const vbox=document.getElementById('tpMediaPreviewVideo');
+    const video=p.videoUrl || p.video || '';
+    if(vbox){
+      vbox.innerHTML = video ? `<video src="${video}" muted controls></video>` : '<span>🎥</span>';
+    }
+
+    if(window.tpSelectedProductFiles){
+      window.tpSelectedProductFiles={photos:[null,null,null], video:null};
+    }
+
+    const addBtn=[...document.querySelectorAll('button')].find(b=>(b.textContent||'').toLowerCase().includes('tambah produk'));
+    if(addBtn) addBtn.textContent='Simpan Perubahan Produk';
+
+    let cancel=document.getElementById('tpCancelEditProductBtn');
+    const btns=document.querySelector('#tpPanelProducts .tp-btns');
+    if(btns && !cancel){
+      cancel=document.createElement('button');
+      cancel.id='tpCancelEditProductBtn';
+      cancel.className='tp-btn';
+      cancel.type='button';
+      cancel.textContent='Batal Edit';
+      cancel.onclick=tpCancelEditProduct;
+      btns.appendChild(cancel);
+    }
+
+    showStatus('Mode edit aktif: perbaiki data produk lalu klik <b>Simpan Perubahan Produk</b>. Foto lama tetap dipakai kalau tidak upload foto baru.');
+    const panel=document.getElementById('tpPanelProducts');
+    if(panel) panel.scrollIntoView({behavior:'smooth',block:'start'});
+  };
+
+  window.tpCancelEditProduct = function(){
+    tpEditingProductId=null;
+    if(typeof tpClearProductForm==='function') tpClearProductForm();
+    const addBtn=[...document.querySelectorAll('button')].find(b=>(b.textContent||'').toLowerCase().includes('simpan perubahan produk'));
+    if(addBtn) addBtn.textContent='Tambah Produk';
+    const cancel=document.getElementById('tpCancelEditProductBtn');
+    if(cancel) cancel.remove();
+    showStatus('Mode edit dibatalkan.');
+  };
+
+  function getPreviewPhotos(){
+    const arr=[];
+    ['tpMediaPreview1','tpMediaPreview2','tpMediaPreview3','tpProdPhotoPreview'].forEach(id=>{
+      const img=document.querySelector('#'+id+' img');
+      if(img && img.src && !arr.includes(img.src)) arr.push(img.src);
+    });
+    return arr;
+  }
+
+  const oldAdd = window.tpAddProduct;
+  window.tpAddProduct = async function(){
+    if(!tpEditingProductId){
+      if(typeof oldAdd === 'function') return await oldAdd();
+      return alert('Fungsi tambah produk belum tersedia.');
+    }
+
+    const u=currentUser();
+    if(!u) return alert('Login dulu.');
+
+    const products=readJSON('tp_products',[]);
+    const idx=products.findIndex(p=>p.id===tpEditingProductId && p.ownerUserId===u.id);
+    if(idx<0) return alert('Produk yang diedit tidak ditemukan.');
+
+    const old=products[idx];
+    const previewPhotos=getPreviewPhotos();
+    const finalPhotos=previewPhotos.length ? previewPhotos : (old.photoUrls || old.photos || []);
+    const videoEl=document.querySelector('#tpMediaPreviewVideo video');
+    const finalVideo=videoEl && videoEl.src ? videoEl.src : (old.videoUrl || old.video || '');
+
+    const updated={
+      ...old,
+      name:val('tpProdName'),
+      category:val('tpProdCat') || old.category || 'tractor',
+      price:val('tpProdPrice'),
+      moq:val('tpProdMoq'),
+      location:val('tpProdLocation'),
+      stock:val('tpProdStock'),
+      condition:val('tpProdCondition') || old.condition || 'new',
+      warranty:val('tpProdWarranty'),
+      description:val('tpProdDesc'),
+      photos:finalPhotos,
+      photoUrls:finalPhotos,
+      video:finalVideo,
+      videoUrl:finalVideo,
+      status:approved(u) ? 'active' : (old.status || 'draft'),
+      updatedAt:new Date().toISOString()
+    };
+
+    if(!updated.name) return alert('Nama produk wajib diisi.');
+    if(!updated.photos.length) return alert('Minimal 1 foto wajib ada.');
+    if(!updated.price) return alert('Harga wajib diisi.');
+    if(!updated.moq) return alert('MOQ wajib diisi.');
+
+    products[idx]=updated;
+    writeJSON('tp_products',products);
+
+    try{
+      if(window.firebaseAdd){
+        await firebaseAdd('products', {...updated, editMode:true, originalProductId:updated.id});
+      }
+    }catch(err){
+      console.warn('Update Firestore gagal, data lokal tetap tersimpan:', err);
+    }
+
+    tpEditingProductId=null;
+    if(typeof tpClearProductForm==='function') tpClearProductForm();
+
+    const addBtn=[...document.querySelectorAll('button')].find(b=>(b.textContent||'').toLowerCase().includes('simpan perubahan produk'));
+    if(addBtn) addBtn.textContent='Tambah Produk';
+    const cancel=document.getElementById('tpCancelEditProductBtn');
+    if(cancel) cancel.remove();
+
+    if(typeof tpRenderProducts==='function') tpRenderProducts();
+    if(typeof tpRefreshMarketplaceProducts==='function') tpRefreshMarketplaceProducts();
+
+    alert('Perubahan produk berhasil disimpan.');
+  };
+
+  const oldRender = window.tpRenderProducts;
+  window.tpRenderProducts = function(){
+    if(typeof oldRender === 'function') oldRender();
+
+    const box=document.getElementById('tpProductList');
+    const u=currentUser();
+    if(!box || !u) return;
+
+    const products=readJSON('tp_products',[]).filter(p=>p.ownerUserId===u.id);
+    if(!products.length) return;
+
+    const cards=box.querySelectorAll('.tp-product-card');
+    cards.forEach((card,i)=>{
+      const p=products[i];
+      if(!p || card.querySelector('.tp-edit-product-btn')) return;
+
+      const body=card.querySelector('.body') || card;
+      const row=document.createElement('div');
+      row.className='tp-btns';
+      row.style.marginTop='10px';
+      row.innerHTML=`
+        <button class="tp-btn green tp-edit-product-btn" type="button" onclick="tpEditProduct('${p.id}')">Edit</button>
+        <button class="tp-btn" type="button" onclick="tpDuplicateProduct('${p.id}')">Duplikat</button>
+        <button class="tp-btn" type="button" onclick="tpDeleteProduct('${p.id}')">Hapus</button>
+      `;
+      body.appendChild(row);
+    });
+  };
+
+  window.tpDuplicateProduct = function(productId){
+    const u=currentUser();
+    const products=readJSON('tp_products',[]);
+    const p=products.find(x=>x.id===productId && x.ownerUserId===u.id);
+    if(!p) return alert('Produk tidak ditemukan.');
+    const copy={...p,id:'PROD-'+Date.now(),name:p.name+' - Copy',status:approved(u)?'active':'draft',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    products.unshift(copy);
+    writeJSON('tp_products',products);
+    if(typeof tpRenderProducts==='function') tpRenderProducts();
+    if(typeof tpRefreshMarketplaceProducts==='function') tpRefreshMarketplaceProducts();
+    alert('Produk berhasil diduplikat.');
+  };
+
+  window.tpDeleteProduct = function(productId){
+    if(!confirm('Hapus produk ini?')) return;
+    const u=currentUser();
+    const products=readJSON('tp_products',[]).filter(p=>!(p.id===productId && p.ownerUserId===u.id));
+    writeJSON('tp_products',products);
+    if(typeof tpRenderProducts==='function') tpRenderProducts();
+    if(typeof tpRefreshMarketplaceProducts==='function') tpRefreshMarketplaceProducts();
+    alert('Produk dihapus dari dashboard lokal.');
+  };
+
+  function bindEditButtons(){
+    if(typeof tpRenderProducts==='function') setTimeout(tpRenderProducts,200);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindEditButtons);
+  else bindEditButtons();
+})();
+</script>
+
 </body>
 </html>
