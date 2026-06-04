@@ -4518,5 +4518,136 @@ function escapeHTML(v){
 })();
 </script>
 
+
+<script>
+/* FINAL FIX: Service modal tidak nyangkut / tidak kebuka lagi saat klik area lain */
+(function(){
+  // Matikan interval lama yang terlalu agresif dengan cara override fungsi binder-nya.
+  window.__serviceMenuSafeMode = true;
+
+  function openSvc(type){
+    if(typeof window.openServiceModal === 'function'){
+      window.openServiceModal(type);
+    }
+  }
+
+  // Close harus benar-benar bersih
+  window.closeServiceModal = function(e){
+    if(e && e.target && e.target.id !== 'serviceModal') return;
+    const modal = document.getElementById('serviceModal');
+    if(modal){
+      modal.classList.remove('show');
+      modal.style.display = 'none';
+    }
+  };
+
+  function clearBadServiceClicks(){
+    // Hapus onclick yang pernah dipasang di parent besar akibat scan teks lama.
+    document.querySelectorAll('.wrap,.main,.buyer,.banner,.section,.footer,.footer-inner,.topbar,.header,.nav,.nav-inner,body').forEach(el=>{
+      el.onclick = null;
+      el.classList.remove('service-clickable');
+    });
+
+    // Hapus class clickable liar di elemen umum, nanti kita pasang ulang yang spesifik.
+    document.querySelectorAll('.service-clickable').forEach(el=>{
+      const text = (el.textContent || '').toLowerCase();
+      const isReal =
+        text.trim() === 'logistics support' ||
+        text.trim() === 'trade assurance' ||
+        text.trim() === 'jaminan transaksi' ||
+        el.dataset.serviceTarget;
+      if(!isReal){
+        el.classList.remove('service-clickable');
+        el.onclick = null;
+      }
+    });
+  }
+
+  function bindSafeServiceMenus(){
+    clearBadServiceClicks();
+
+    // 1. Card Logistics Support: cari kartu terkecil yang isinya spesifik.
+    document.querySelectorAll('.buyer-card,.quick-card,.nav-card,.service-card,div').forEach(card=>{
+      const text = (card.textContent || '').toLowerCase();
+      const isLogistics =
+        text.includes('logistics support') ||
+        text.includes('dukungan logistik') ||
+        text.includes('shipping for large units') ||
+        text.includes('pengiriman unit besar');
+
+      const isTrade =
+        text.includes('trade assurance') ||
+        text.includes('trade insurance') ||
+        text.includes('jaminan transaksi') ||
+        text.includes('pembayaran aman');
+
+      // Jangan pasang ke parent besar yang mengandung banyak menu sekaligus.
+      if(text.length > 220) return;
+
+      if(isLogistics){
+        card.dataset.serviceTarget = 'logistics';
+        card.classList.add('service-clickable');
+        card.onclick = function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          openSvc('logistics');
+        };
+      }
+
+      if(isTrade){
+        card.dataset.serviceTarget = 'trade-insurance';
+        card.classList.add('service-clickable');
+        card.onclick = function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          openSvc('trade-insurance');
+        };
+      }
+    });
+
+    // 2. Topbar/nav Trade Assurance hanya elemen teksnya, bukan parent.
+    document.querySelectorAll('.nav-inner span,.topbar span,.topbar a').forEach(el=>{
+      const text = (el.textContent || '').toLowerCase().trim();
+      if(text.includes('trade assurance') || text.includes('jaminan transaksi')){
+        el.dataset.serviceTarget = 'trade-insurance';
+        el.style.cursor = 'pointer';
+        el.onclick = function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          openSvc('trade-insurance');
+        };
+      }
+    });
+  }
+
+  // Cegah klik random di halaman membuka modal service.
+  document.addEventListener('click', function(e){
+    const modal = document.getElementById('serviceModal');
+    if(modal && modal.classList.contains('show')){
+      return;
+    }
+    const target = e.target.closest('[data-service-target]');
+    if(!target){
+      // Pastikan tidak ada onclick liar yang tersisa pada elemen yang diklik.
+      const bad = e.target.closest('.service-clickable');
+      if(bad && !bad.dataset.serviceTarget){
+        e.stopPropagation();
+        bad.onclick = null;
+        bad.classList.remove('service-clickable');
+      }
+    }
+  }, true);
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', () => setTimeout(bindSafeServiceMenus, 500));
+  }else{
+    setTimeout(bindSafeServiceMenus, 500);
+  }
+
+  // Bind ulang secukupnya, bukan interval agresif.
+  setTimeout(bindSafeServiceMenus, 1500);
+})();
+</script>
+
 </body>
 </html>
