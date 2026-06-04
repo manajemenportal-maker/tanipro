@@ -2554,5 +2554,154 @@ function escapeHTML(v){
 })();
 </script>
 
+
+<script>
+(function(){
+  function readJSON(key, fallback){try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));}catch(e){return fallback;}}
+  function writeJSON(key, value){localStorage.setItem(key, JSON.stringify(value));}
+  function currentUser(){return readJSON('tp_current_user', null);}
+  function saveUser(user){
+    writeJSON('tp_current_user', user);
+    const users = readJSON('tp_users', []);
+    const idx = users.findIndex(u => u.id === user.id || (u.email && user.email && u.email === user.email));
+    if(idx >= 0) users[idx] = {...users[idx], ...user};
+    else users.unshift(user);
+    writeJSON('tp_users', users);
+  }
+  function findSupplier(user){
+    if(!user) return null;
+    const suppliers = readJSON('taniProSuppliers', []);
+    return suppliers.find(s =>
+      (s.ownerUserId && s.ownerUserId === user.id) ||
+      (s.email && user.email && s.email === user.email) ||
+      (s.phone && user.phone && s.phone === user.phone) ||
+      (s.company && user.company && s.company.toLowerCase() === user.company.toLowerCase())
+    ) || null;
+  }
+  function statusOf(s){
+    if(!s) return 'none';
+    if(s.verified === true) return 'verified';
+    return (s.status || 'pending').toLowerCase();
+  }
+
+  window.tpSyncSupplierStatusToUser = function(){
+    let user = currentUser();
+    if(!user) return null;
+    const supplier = findSupplier(user);
+    if(!supplier) return user;
+
+    const st = statusOf(supplier);
+    user = {
+      ...user,
+      role:'supplier',
+      company:supplier.company || user.company || '',
+      product:supplier.product || user.product || '',
+      address:supplier.address || user.address || '',
+      desc:supplier.description || supplier.desc || user.desc || '',
+      supplierStatus:st,
+      supplierVerified:st === 'approved' || st === 'verified',
+      supplierDocId:supplier.id || user.supplierDocId || '',
+      updatedAt:new Date().toISOString()
+    };
+    saveUser(user);
+    return user;
+  };
+
+  const oldSetSupplierStatus = window.setSupplierStatus;
+  window.setSupplierStatus = async function(id, status){
+    const suppliers = readJSON('taniProSuppliers', []);
+    const supplier = suppliers.find(s => s.id === id);
+
+    try{
+      if(typeof oldSetSupplierStatus === 'function') await oldSetSupplierStatus(id, status);
+    }catch(e){ console.warn(e); }
+
+    const list = readJSON('taniProSuppliers', []);
+    const updated = list.map(s => s.id === id ? {...s, status, verified:status==='verified', updatedAt:new Date().toISOString()} : s);
+    writeJSON('taniProSuppliers', updated);
+
+    const s2 = updated.find(s => s.id === id) || supplier;
+    if(s2){
+      const users = readJSON('tp_users', []);
+      const newUsers = users.map(u => {
+        const match = (s2.ownerUserId && u.id === s2.ownerUserId) || (s2.email && u.email && s2.email === u.email) || (s2.phone && u.phone && s2.phone === u.phone);
+        if(!match) return u;
+        return {...u, role:'supplier', company:s2.company||u.company||'', product:s2.product||u.product||'', address:s2.address||u.address||'', desc:s2.description||u.desc||'', supplierStatus:status, supplierVerified:status==='approved'||status==='verified', supplierDocId:s2.id};
+      });
+      writeJSON('tp_users', newUsers);
+
+      const cur = currentUser();
+      if(cur){
+        const match = (s2.ownerUserId && cur.id === s2.ownerUserId) || (s2.email && cur.email && s2.email === cur.email) || (s2.phone && cur.phone && s2.phone === cur.phone);
+        if(match){
+          saveUser({...cur, role:'supplier', company:s2.company||cur.company||'', product:s2.product||cur.product||'', address:s2.address||cur.address||'', desc:s2.description||cur.desc||'', supplierStatus:status, supplierVerified:status==='approved'||status==='verified', supplierDocId:s2.id});
+        }
+      }
+    }
+
+    if(typeof renderSupplierAdminTable === 'function') renderSupplierAdminTable();
+    if(typeof tpRenderDashboard === 'function') tpRenderDashboard();
+    alert('Supplier sudah ' + status.toUpperCase() + ' dan statusnya tersambung ke dashboard user.');
+  };
+
+  const oldSubmitSupplier = window.tpSubmitSupplier;
+  window.tpSubmitSupplier = async function(){
+    const user = currentUser();
+    if(!user) return openAccountCenter();
+
+    const company = (document.getElementById('tpCompanyName')?.value || '').trim();
+    const product = (document.getElementById('tpCompanyProduct')?.value || '').trim();
+    const address = (document.getElementById('tpCompanyAddress')?.value || '').trim();
+    const desc = (document.getElementById('tpCompanyDesc')?.value || '').trim();
+    if(!company || !product) return alert('Nama perusahaan dan bidang produk wajib diisi.');
+
+    const supplier = {
+      id:user.supplierDocId || ('SUP-' + user.id),
+      ownerUserId:user.id,
+      company, name:user.name||'', email:user.email||'', phone:user.phone||'',
+      product, address, description:desc, status:'pending', verified:false,
+      updatedAt:new Date().toISOString(), createdAt:new Date().toISOString()
+    };
+
+    const suppliers = readJSON('taniProSuppliers', []);
+    const idx = suppliers.findIndex(s => s.id === supplier.id || s.ownerUserId === user.id || (s.email && user.email && s.email === user.email));
+    if(idx >= 0) suppliers[idx] = {...suppliers[idx], ...supplier, id:suppliers[idx].id || supplier.id};
+    else suppliers.unshift(supplier);
+    writeJSON('taniProSuppliers', suppliers);
+
+    saveUser({...user, role:'supplier', company, product, address, desc, supplierStatus:'pending', supplierVerified:false, supplierDocId:supplier.id});
+
+    try{ if(window.firebaseAdd) await firebaseAdd('suppliers', supplier); }catch(e){console.warn(e);}
+    if(typeof tpRenderDashboard === 'function') tpRenderDashboard();
+    alert('Pengajuan supplier tersimpan. Status PENDING sampai admin approve.');
+  };
+
+  const oldRenderDashboard = window.tpRenderDashboard;
+  window.tpRenderDashboard = function(){
+    const synced = tpSyncSupplierStatusToUser();
+    if(typeof oldRenderDashboard === 'function') oldRenderDashboard();
+    const user = synced || currentUser();
+    const statusEl = document.getElementById('tpSupplierStatus');
+    if(statusEl && user){
+      const st = (user.supplierStatus || 'none').toUpperCase();
+      statusEl.textContent = st;
+      statusEl.classList.toggle('ok', ['APPROVED','VERIFIED'].includes(st));
+    }
+    const tab = document.getElementById('tpTabProducts');
+    if(tab && user){
+      const ok = ['approved','verified'].includes((user.supplierStatus||'').toLowerCase());
+      tab.textContent = ok ? '📦 Produk Saya' : '📦 Produk (Pending Admin)';
+    }
+  };
+
+  const oldOpen = window.openAccountCenter;
+  window.openAccountCenter = function(){
+    tpSyncSupplierStatusToUser();
+    if(typeof oldOpen === 'function') oldOpen();
+    setTimeout(function(){ if(typeof tpRenderDashboard === 'function') tpRenderDashboard(); }, 150);
+  };
+})();
+</script>
+
 </body>
 </html>
