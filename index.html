@@ -317,6 +317,19 @@
     .tp-product-card .status-active{background:#ecfdf5!important;color:#047857!important}
     @media(max-width:760px){.tp-product-card-list{grid-template-columns:1fr}.tp-photo-preview{height:150px}}
 
+  
+    /* SIMPLIFIED APPROVAL + MULTI MEDIA PRODUCT */
+    .tp-media-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .tp-media-uploader{border:2px dashed #d1d5db;border-radius:16px;padding:10px;background:#f9fafb;text-align:center;cursor:pointer;min-height:150px;display:flex;flex-direction:column;justify-content:center}
+    .tp-media-uploader input{display:none}
+    .tp-media-preview{width:100%;height:105px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #eee;margin-bottom:8px}
+    .tp-media-preview img,.tp-media-preview video{width:100%;height:100%;object-fit:cover}
+    .tp-media-preview span{font-size:32px}
+    .tp-rule-box{background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46;border-radius:16px;padding:13px;font-size:13px;line-height:1.45;margin-bottom:14px}
+    .tp-product-card .media-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px}
+    .tp-product-card .media-strip img{width:100%;height:58px;object-fit:cover;border-radius:8px;background:#f3f4f6}
+    @media(max-width:760px){.tp-media-grid{grid-template-columns:repeat(2,1fr)}}
+
   </style>
 </head>
 <body>
@@ -2279,22 +2292,39 @@ function escapeHTML(v){
 
           <div id="tpPanelProducts" class="tp-card" style="display:none">
             <h3>Produk Saya</h3>
-            <div class="tp-alert">
-              Lengkapi produk supplier dengan foto, kategori, harga, MOQ, lokasi, stok, dan deskripsi. Produk masuk status <b>PENDING</b> sampai admin approve.
+            <div class="tp-rule-box">
+              <b>Aturan tayang produk:</b><br>
+              Supplier cukup di-approve 1x oleh admin. Setelah supplier berstatus <b>APPROVED / VERIFIED</b>, produk yang diupload langsung <b>ACTIVE / TAYANG</b>. Admin hanya perlu blokir produk jika ada masalah.
             </div>
-            <div class="tp-grid">
-              <label class="tp-photo-uploader">
-                <div class="tp-photo-preview" id="tpProdPhotoPreview"><span>📷</span></div>
-                <b>Klik untuk upload foto produk</b><br>
-                <small>Foto tersimpan sementara di browser. Nanti bisa kita sambungkan ke Firebase Storage.</small>
-                <input id="tpProdPhoto" type="file" accept="image/*" onchange="tpPreviewProductPhoto(event)">
+
+            <div class="tp-media-grid">
+              <label class="tp-media-uploader">
+                <div class="tp-media-preview" id="tpMediaPreview1"><span>📷</span></div>
+                <b>Foto 1</b><small>Wajib</small>
+                <input id="tpProdPhoto1" type="file" accept="image/*" onchange="tpPreviewMedia(event,1,'photo')">
               </label>
-              <div class="tp-grid">
-                <div class="tp-field"><label>Nama Produk</label><input id="tpProdName" placeholder="Traktor 4WD 50HP"></div>
-                <div class="tp-field"><label>Kategori</label><select id="tpProdCat"><option value="tractor">Tractor</option><option value="pump">Irrigation Pump</option><option value="harvester">Harvester</option><option value="sprayer">Sprayer</option><option value="parts">Spare Parts</option><option value="other">Other</option></select></div>
-                <div class="tp-field"><label>Harga</label><input id="tpProdPrice" placeholder="Rp 250.000.000 / USD 12,000"></div>
-                <div class="tp-field"><label>MOQ</label><input id="tpProdMoq" placeholder="MOQ: 1 set"></div>
-              </div>
+              <label class="tp-media-uploader">
+                <div class="tp-media-preview" id="tpMediaPreview2"><span>📷</span></div>
+                <b>Foto 2</b><small>Opsional</small>
+                <input id="tpProdPhoto2" type="file" accept="image/*" onchange="tpPreviewMedia(event,2,'photo')">
+              </label>
+              <label class="tp-media-uploader">
+                <div class="tp-media-preview" id="tpMediaPreview3"><span>📷</span></div>
+                <b>Foto 3</b><small>Opsional</small>
+                <input id="tpProdPhoto3" type="file" accept="image/*" onchange="tpPreviewMedia(event,3,'photo')">
+              </label>
+              <label class="tp-media-uploader">
+                <div class="tp-media-preview" id="tpMediaPreviewVideo"><span>🎥</span></div>
+                <b>Video</b><small>Opsional</small>
+                <input id="tpProdVideo" type="file" accept="video/*" onchange="tpPreviewMedia(event,'Video','video')">
+              </label>
+            </div>
+
+            <div class="tp-grid" style="margin-top:14px">
+              <div class="tp-field"><label>Nama Produk</label><input id="tpProdName" placeholder="Traktor 4WD 50HP"></div>
+              <div class="tp-field"><label>Kategori</label><select id="tpProdCat"><option value="tractor">Tractor</option><option value="pump">Irrigation Pump</option><option value="harvester">Harvester</option><option value="sprayer">Sprayer</option><option value="parts">Spare Parts</option><option value="other">Other</option></select></div>
+              <div class="tp-field"><label>Harga</label><input id="tpProdPrice" placeholder="Rp 250.000.000 / USD 12,000"></div>
+              <div class="tp-field"><label>MOQ</label><input id="tpProdMoq" placeholder="MOQ: 1 set"></div>
               <div class="tp-field"><label>Lokasi Barang</label><input id="tpProdLocation" placeholder="Tangerang, Banten / Shandong, China"></div>
               <div class="tp-field"><label>Stok / Kapasitas</label><input id="tpProdStock" placeholder="Ready stock 5 unit / produksi 20 unit per bulan"></div>
               <div class="tp-field"><label>Kondisi</label><select id="tpProdCondition"><option value="new">Baru</option><option value="used">Bekas</option><option value="oem">OEM / Custom</option></select></div>
@@ -2699,6 +2729,139 @@ function escapeHTML(v){
     tpSyncSupplierStatusToUser();
     if(typeof oldOpen === 'function') oldOpen();
     setTimeout(function(){ if(typeof tpRenderDashboard === 'function') tpRenderDashboard(); }, 150);
+  };
+})();
+</script>
+
+
+<script>
+(function(){
+  let tpMediaFiles = {photos:['','',''], video:''};
+
+  function read(k,f){try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(f));}catch(e){return f}}
+  function write(k,v){localStorage.setItem(k,JSON.stringify(v))}
+  function val(id){const e=document.getElementById(id);return e?e.value.trim():''}
+  function current(){return read('tp_current_user',null)}
+  function supplierApproved(user){
+    const st=(user?.supplierStatus||'').toLowerCase();
+    return st==='approved' || st==='verified' || user?.supplierVerified===true;
+  }
+
+  window.tpPreviewMedia = function(e,idx,type){
+    const file=e.target.files && e.target.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const data=ev.target.result;
+      if(type==='video'){
+        tpMediaFiles.video=data;
+        const box=document.getElementById('tpMediaPreviewVideo');
+        if(box) box.innerHTML=`<video src="${data}" muted controls></video>`;
+      }else{
+        const n=Number(idx)-1;
+        tpMediaFiles.photos[n]=data;
+        const box=document.getElementById('tpMediaPreview'+idx);
+        if(box) box.innerHTML=`<img src="${data}" alt="Foto ${idx}">`;
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.tpClearProductForm = function(){
+    ['tpProdName','tpProdPrice','tpProdMoq','tpProdLocation','tpProdStock','tpProdWarranty','tpProdDesc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    const cat=document.getElementById('tpProdCat'); if(cat) cat.value='tractor';
+    const cond=document.getElementById('tpProdCondition'); if(cond) cond.value='new';
+    ['tpProdPhoto1','tpProdPhoto2','tpProdPhoto3','tpProdVideo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    ['1','2','3'].forEach(i=>{const box=document.getElementById('tpMediaPreview'+i);if(box)box.innerHTML='<span>📷</span>';});
+    const v=document.getElementById('tpMediaPreviewVideo'); if(v) v.innerHTML='<span>🎥</span>';
+    tpMediaFiles={photos:['','',''],video:''};
+  };
+
+  window.tpAddProduct = async function(){
+    const u=current();
+    if(!u) return openAccountCenter();
+    const active=supplierApproved(u);
+    const p={
+      id:'PROD-'+Date.now(),
+      ownerUserId:u.id,
+      supplierCompany:u.company||'',
+      photos:tpMediaFiles.photos.filter(Boolean),
+      video:tpMediaFiles.video || '',
+      name:val('tpProdName'),
+      category:val('tpProdCat')||'tractor',
+      price:val('tpProdPrice'),
+      moq:val('tpProdMoq'),
+      location:val('tpProdLocation'),
+      stock:val('tpProdStock'),
+      condition:val('tpProdCondition'),
+      warranty:val('tpProdWarranty'),
+      description:val('tpProdDesc'),
+      status:active?'active':'draft',
+      createdAt:new Date().toISOString()
+    };
+    if(!p.name) return alert('Nama produk wajib diisi.');
+    if(!p.photos.length) return alert('Minimal Foto 1 wajib diupload.');
+    if(!p.price) return alert('Harga wajib diisi.');
+    if(!p.moq) return alert('MOQ wajib diisi.');
+
+    const list=read('tp_products',[]);
+    list.unshift(p);
+    write('tp_products',list);
+
+    try{
+      if(window.firebaseAdd){
+        await firebaseAdd('products',{...p,photosCount:p.photos.length,hasVideo:!!p.video,photos:'local-browser-preview',video:p.video?'local-browser-video':''});
+      }
+    }catch(e){console.warn(e)}
+
+    tpClearProductForm();
+    if(window.tpRenderProducts) tpRenderProducts();
+    alert(active ? 'Produk tersimpan dan langsung ACTIVE / TAYANG.' : 'Produk tersimpan sebagai DRAFT. Supplier harus approve dulu agar produk tayang.');
+  };
+
+  window.tpRenderProducts = function(){
+    const u=current();
+    const box=document.getElementById('tpProductList');
+    if(!u||!box) return;
+    const list=read('tp_products',[]).filter(p=>p.ownerUserId===u.id);
+    if(!list.length){
+      box.innerHTML='<div class="tp-item"><div><b>Belum ada produk</b><small>Upload minimal Foto 1, lengkapi data produk, lalu klik Tambah Produk.</small></div></div>';
+      return;
+    }
+    box.innerHTML=list.map(p=>{
+      const main=(p.photos&&p.photos[0]) || p.photo || '';
+      const pic=main?`<img src="${main}" alt="${p.name}">`:'<span>🚜</span>';
+      const strip=(p.photos||[]).slice(0,3).map(x=>`<img src="${x}" alt="foto">`).join('');
+      const cls=p.status==='active'?'status-active':'status-pending';
+      return `<div class="tp-product-card">
+        <div class="pic">${pic}</div>
+        <div class="body">
+          <b>${p.name}</b>
+          <small>${p.description||'Belum ada deskripsi.'}</small>
+          ${strip?`<div class="media-strip">${strip}</div>`:''}
+          <div class="meta">
+            <em>${p.category||'-'}</em><em>${p.price||'-'}</em><em>${p.moq||'-'}</em><em>${p.location||'-'}</em>
+            <em class="${cls}">${(p.status||'draft').toUpperCase()}</em>
+            ${p.video?'<em>VIDEO</em>':''}
+          </div>
+          <small style="margin-top:8px">Stok: ${p.stock||'-'} · Kondisi: ${p.condition||'-'} · Garansi: ${p.warranty||'-'}</small>
+        </div>
+      </div>`;
+    }).join('');
+  };
+
+  // Admin approval otomatis mengubah draft produk supplier menjadi active
+  const oldSet=window.setSupplierStatus;
+  window.setSupplierStatus=async function(id,status){
+    if(typeof oldSet==='function') await oldSet(id,status);
+    const suppliers=read('taniProSuppliers',[]);
+    const s=suppliers.find(x=>x.id===id);
+    if(s && (status==='approved'||status==='verified')){
+      const products=read('tp_products',[]);
+      const updated=products.map(p=>p.ownerUserId===s.ownerUserId && p.status==='draft'?{...p,status:'active'}:p);
+      write('tp_products',updated);
+      alert('Supplier approved. Produk draft supplier otomatis menjadi ACTIVE.');
+    }
   };
 })();
 </script>
