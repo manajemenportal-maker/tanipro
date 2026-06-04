@@ -4362,50 +4362,67 @@ function escapeHTML(v){
   </div>
 
 
-<script>
-/* FINAL FIX: Hidupkan Logistics Support + Trade Insurance */
-(function(){
-  function readJSON(key,fallback){
-    try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));}catch(e){return fallback;}
-  }
-  function writeJSON(key,value){localStorage.setItem(key,JSON.stringify(value));}
-  function esc(v){
-    return String(v ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
 
+
+
+
+
+
+
+
+
+<script>
+/* CLEAN SERVICE FIX - no global text scan, no interval, no parent hijack */
+(function(){
+  function q(sel, root=document){ return root.querySelector(sel); }
+  function qa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+
+  window.closeServiceModal = function(e){
+    if(e && e.target && e.target.id !== 'serviceModal') return;
+    const modal = document.getElementById('serviceModal');
+    if(modal){
+      modal.classList.remove('show');
+      modal.style.display = 'none';
+    }
+  };
+
+  // Rebuild openServiceModal only if the original exists; otherwise create content here.
   window.openServiceModal = function(type){
-    const modal=document.getElementById('serviceModal');
-    const title=document.getElementById('serviceTitle');
-    const subtitle=document.getElementById('serviceSubtitle');
-    const body=document.getElementById('serviceBody');
-    if(!modal||!title||!subtitle||!body) return;
+    const modal = document.getElementById('serviceModal');
+    const title = document.getElementById('serviceTitle');
+    const subtitle = document.getElementById('serviceSubtitle');
+    const body = document.getElementById('serviceBody');
+    if(!modal || !title || !subtitle || !body){
+      alert(type === 'logistics' ? 'Logistics Support' : 'Trade Insurance');
+      return;
+    }
 
     if(type === 'logistics'){
-      title.textContent='Logistics Support';
-      subtitle.textContent='Bantuan pengiriman unit besar, alat pertanian, spare part, dan dokumen pengiriman.';
-      body.innerHTML=`
+      title.textContent = 'Logistics Support';
+      subtitle.textContent = 'Bantuan pengiriman unit besar, spare part, dan dokumen pengiriman.';
+      body.innerHTML = `
         <div class="service-grid">
           <div class="service-card"><b>🚜 Unit Besar</b><span>Traktor, combine harvester, pompa, implement, dan unit berat lainnya.</span></div>
-          <div class="service-card"><b>📦 Spare Part</b><span>Pengiriman parts, aksesoris, dan komponen kecil antar kota/provinsi.</span></div>
-          <div class="service-card"><b>🧾 Dokumen</b><span>Bantuan estimasi ongkir, alamat tujuan, invoice, packing list, dan tracking.</span></div>
+          <div class="service-card"><b>📦 Spare Part</b><span>Pengiriman parts, aksesoris, dan komponen kecil.</span></div>
+          <div class="service-card"><b>🧾 Dokumen</b><span>Estimasi ongkir, alamat tujuan, invoice, packing list, dan tracking.</span></div>
         </div>
         <form class="service-form" onsubmit="submitServiceRequest(event,'logistics')">
           <h3>Ajukan Bantuan Logistik</h3>
           <div class="service-form-grid">
             <div class="service-field"><label>Nama / Perusahaan</label><input id="svcName" required></div>
             <div class="service-field"><label>WhatsApp / Email</label><input id="svcContact" required></div>
-            <div class="service-field"><label>Jenis Barang</label><input id="svcItem" placeholder="Traktor 50HP / spare part / pompa"></div>
-            <div class="service-field"><label>Estimasi Berat / Dimensi</label><input id="svcSize" placeholder="Contoh: 1.5 ton / 2 x 1.5 x 1.8 m"></div>
-            <div class="service-field"><label>Asal Pengiriman</label><input id="svcOrigin" placeholder="Kota / Provinsi"></div>
-            <div class="service-field"><label>Tujuan Pengiriman</label><input id="svcDestination" placeholder="Kota / Provinsi"></div>
-            <div class="service-field" style="grid-column:1/-1"><label>Catatan</label><textarea id="svcNote" placeholder="Jelaskan kebutuhan pengiriman, jadwal, handling, unloading, dan lainnya."></textarea></div>
+            <div class="service-field"><label>Jenis Barang</label><input id="svcItem" placeholder="Traktor / spare part / pompa"></div>
+            <div class="service-field"><label>Estimasi Berat / Dimensi</label><input id="svcSize" placeholder="Contoh: 1.5 ton"></div>
+            <div class="service-field"><label>Asal Pengiriman</label><input id="svcOrigin"></div>
+            <div class="service-field"><label>Tujuan Pengiriman</label><input id="svcDestination"></div>
+            <div class="service-field" style="grid-column:1/-1"><label>Catatan</label><textarea id="svcNote"></textarea></div>
           </div>
           <div class="service-actions"><button class="primary" type="submit">Kirim Permintaan Logistik</button><button class="dark" type="button" onclick="closeServiceModal()">Tutup</button></div>
         </form>`;
-    }else{
-      title.textContent='Trade Insurance / Jaminan Transaksi';
-      subtitle.textContent='Layanan pengaman transaksi agar buyer dan supplier lebih percaya sebelum pembayaran dan pengiriman.';
-      body.innerHTML=`
+    } else {
+      title.textContent = 'Trade Insurance / Jaminan Transaksi';
+      subtitle.textContent = 'Layanan pengaman transaksi agar buyer dan supplier lebih percaya.';
+      body.innerHTML = `
         <div class="service-grid">
           <div class="service-card"><b>🛡️ Verifikasi Supplier</b><span>Cek identitas supplier, perusahaan, produk, dan kelayakan transaksi.</span></div>
           <div class="service-card"><b>💳 Kontrol Pembayaran</b><span>Catat termin pembayaran, DP, pelunasan, dan bukti transfer.</span></div>
@@ -4416,30 +4433,24 @@ function escapeHTML(v){
           <div class="service-form-grid">
             <div class="service-field"><label>Nama Buyer</label><input id="svcName" required></div>
             <div class="service-field"><label>WhatsApp / Email</label><input id="svcContact" required></div>
-            <div class="service-field"><label>Supplier / Perusahaan</label><input id="svcSupplier" placeholder="Nama supplier"></div>
-            <div class="service-field"><label>Nilai Transaksi</label><input id="svcValue" placeholder="Contoh: Rp 250.000.000"></div>
-            <div class="service-field"><label>Produk</label><input id="svcItem" placeholder="Produk yang dibeli"></div>
+            <div class="service-field"><label>Supplier / Perusahaan</label><input id="svcSupplier"></div>
+            <div class="service-field"><label>Nilai Transaksi</label><input id="svcValue"></div>
+            <div class="service-field"><label>Produk</label><input id="svcItem"></div>
             <div class="service-field"><label>Status Transaksi</label><select id="svcStatus"><option>Baru negosiasi</option><option>Sudah quotation</option><option>Sudah DP</option><option>Menunggu pengiriman</option><option>Ada komplain</option></select></div>
-            <div class="service-field" style="grid-column:1/-1"><label>Catatan</label><textarea id="svcNote" placeholder="Jelaskan kebutuhan perlindungan transaksi, syarat pembayaran, dan kendala bila ada."></textarea></div>
+            <div class="service-field" style="grid-column:1/-1"><label>Catatan</label><textarea id="svcNote"></textarea></div>
           </div>
           <div class="service-actions"><button class="primary" type="submit">Kirim Pengajuan Jaminan</button><button class="dark" type="button" onclick="closeServiceModal()">Tutup</button></div>
         </form>`;
     }
 
     modal.classList.add('show');
-    modal.style.display='flex';
+    modal.style.display = 'flex';
   };
 
-  window.closeServiceModal=function(e){
-    if(e && e.target && e.target.id!=='serviceModal') return;
-    const modal=document.getElementById('serviceModal');
-    if(modal){modal.classList.remove('show');modal.style.display='none';}
-  };
-
-  window.submitServiceRequest=async function(e,type){
+  window.submitServiceRequest = async function(e,type){
     e.preventDefault();
-    const get=id=>document.getElementById(id)?.value || '';
-    const data={
+    const get = id => document.getElementById(id)?.value || '';
+    const data = {
       id:'SVC-'+Date.now(),
       type,
       name:get('svcName'),
@@ -4456,161 +4467,78 @@ function escapeHTML(v){
       createdAt:new Date().toISOString()
     };
     if(!data.name || !data.contact) return alert('Nama dan kontak wajib diisi.');
-    const key=type==='logistics'?'logistics_requests':'trade_insurance_requests';
-    const list=readJSON(key,[]);
+    const key = type === 'logistics' ? 'logistics_requests' : 'trade_insurance_requests';
+    const list = JSON.parse(localStorage.getItem(key) || '[]');
     list.unshift(data);
-    writeJSON(key,list);
+    localStorage.setItem(key, JSON.stringify(list));
     try{
       if(window.firebaseAdd){
-        await firebaseAdd(type==='logistics'?'logisticsRequests':'tradeInsuranceRequests',data);
+        await firebaseAdd(type === 'logistics' ? 'logisticsRequests' : 'tradeInsuranceRequests', data);
       }
     }catch(err){
-      console.warn('Service request belum masuk Firebase, tersimpan lokal:',err);
+      console.warn('Service request tersimpan lokal, Firebase belum masuk:', err);
     }
     closeServiceModal();
-    alert(type==='logistics'?'Permintaan logistik berhasil dikirim.':'Pengajuan jaminan transaksi berhasil dikirim.');
+    alert(type === 'logistics' ? 'Permintaan logistik berhasil dikirim.' : 'Pengajuan jaminan transaksi berhasil dikirim.');
   };
 
-  function bindServiceMenus(){
-    document.querySelectorAll('*').forEach(el=>{
-      const txt=(el.textContent||'').trim().toLowerCase();
-      if(!txt) return;
-
-      // Logistics Support card/menu
-      if(txt === 'logistics support' || txt.includes('shipping for large units') || txt.includes('pengiriman unit besar')){
-        const card = el.closest('.buyer-card,.quick-card,.nav-card,.service-card,div') || el;
-        card.classList.add('service-clickable');
-        card.onclick=function(e){
-          e.preventDefault();
-          e.stopPropagation();
-          openServiceModal('logistics');
-        };
-      }
-
-      // Trade Assurance / Trade Insurance menu
-      if(txt === 'trade assurance' || txt === 'jaminan transaksi' || txt.includes('pembayaran aman') || txt.includes('trade insurance')){
-        const card = el.closest('.buyer-card,.nav-card,.service-card,div,span') || el;
-        card.classList.add('service-clickable');
-        card.onclick=function(e){
-          e.preventDefault();
-          e.stopPropagation();
-          openServiceModal('trade-insurance');
-        };
-      }
+  function clearServiceHijack(){
+    // Remove old inline onclicks/classes on broad containers and any element without exact service marker.
+    qa('.service-clickable').forEach(el => {
+      delete el.dataset.serviceTarget;
+      el.classList.remove('service-clickable');
+      el.onclick = null;
     });
-
-    // Specific nav/menu text
-    document.querySelectorAll('.nav-inner span,.topbar span,.topbar a').forEach(el=>{
-      const t=(el.textContent||'').toLowerCase();
-      if(t.includes('trade') || t.includes('jaminan')){
-        el.style.cursor='pointer';
-        el.onclick=function(e){e.preventDefault();openServiceModal('trade-insurance');};
-      }
+    qa('.wrap,.main,.buyer,.banner,.section,.footer,.footer-inner,.topbar,.header,.nav,.nav-inner,body').forEach(el => {
+      el.onclick = null;
     });
   }
 
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',()=>setTimeout(bindServiceMenus,600));
-  }else{
-    setTimeout(bindServiceMenus,600);
-  }
-  setInterval(bindServiceMenus,2200);
-})();
-</script>
+  function markExactServiceTargets(){
+    clearServiceHijack();
 
-
-
-
-
-<script>
-/* FINAL SAFE FIX: service menu aktif tanpa mematikan menu lain */
-(function(){
-  function openSvc(type){
-    if(typeof window.openServiceModal === 'function'){
-      window.openServiceModal(type);
-    }
-  }
-
-  window.closeServiceModal = function(e){
-    if(e && e.target && e.target.id !== 'serviceModal') return;
-    const modal = document.getElementById('serviceModal');
-    if(modal){
-      modal.classList.remove('show');
-      modal.style.display = 'none';
-    }
-  };
-
-  function removeWrongServiceHandlers(){
-    // Bersihkan onclick liar yang pernah dipasang ke container besar,
-    // tapi jangan sentuh menu normal lain.
-    ['.wrap','.main','.buyer','.banner','.section','.footer','.footer-inner','.topbar','.header','.nav','.nav-inner'].forEach(sel=>{
-      document.querySelectorAll(sel).forEach(el=>{
-        if(el.dataset.serviceTarget !== 'logistics' && el.dataset.serviceTarget !== 'trade-insurance'){
-          el.classList.remove('service-clickable');
-          if(el.getAttribute('data-service-bound') === 'wrong') {
-            el.onclick = null;
-            el.removeAttribute('data-service-bound');
-          }
-        }
-      });
-    });
-  }
-
-  function bindExactServices(){
-    removeWrongServiceHandlers();
-
-    // Cari card kecil yang memang berisi service, bukan parent besar.
-    const candidates = Array.from(document.querySelectorAll('.buyer-card,.quick-card,.nav-card,.service-card'));
-    candidates.forEach(card=>{
+    // Only exact small cards in the right-side buyer/service cards.
+    qa('.buyer-card').forEach(card => {
       const text = (card.textContent || '').toLowerCase();
-      if(text.length > 260) return;
-
-      if(text.includes('logistics support') || text.includes('dukungan logistik') || text.includes('shipping for large units') || text.includes('pengiriman unit besar')){
+      if(text.includes('logistics support') || text.includes('dukungan logistik')){
         card.dataset.serviceTarget = 'logistics';
-        card.classList.add('service-clickable');
-        card.onclick = function(e){
-          e.preventDefault();
-          e.stopPropagation();
-          openSvc('logistics');
-        };
+        card.style.cursor = 'pointer';
       }
-
-      if(text.includes('trade assurance') || text.includes('trade insurance') || text.includes('jaminan transaksi') || text.includes('pembayaran aman')){
+      if(text.includes('trade assurance') || text.includes('jaminan transaksi') || text.includes('pembayaran aman')){
         card.dataset.serviceTarget = 'trade-insurance';
-        card.classList.add('service-clickable');
-        card.onclick = function(e){
-          e.preventDefault();
-          e.stopPropagation();
-          openSvc('trade-insurance');
-        };
+        card.style.cursor = 'pointer';
       }
     });
 
-    // Menu teks trade di header/nav hanya elemen itu saja.
-    document.querySelectorAll('.nav-inner span,.topbar span,.topbar a').forEach(el=>{
-      const text=(el.textContent||'').toLowerCase().trim();
-      if(text.includes('trade assurance') || text.includes('jaminan transaksi') || text.includes('jaminan')){
-        el.dataset.serviceTarget='trade-insurance';
-        el.style.cursor='pointer';
-        el.onclick=function(e){
-          e.preventDefault();
-          e.stopPropagation();
-          openSvc('trade-insurance');
-        };
+    // Only top/nav item that exactly mentions Trade.
+    qa('.nav-inner span,.topbar span,.topbar a').forEach(el => {
+      const t = (el.textContent || '').toLowerCase().trim();
+      if(t === 'trade assurance' || t === 'jaminan transaksi' || t === 'jaminan transaksi / trade assurance'){
+        el.dataset.serviceTarget = 'trade-insurance';
+        el.style.cursor = 'pointer';
       }
     });
-
-    // Jangan pakai document.addEventListener capture yang mematikan klik lain.
   }
+
+  // One single delegated listener that only reacts to marked service targets.
+  document.addEventListener('click', function(e){
+    const target = e.target.closest('[data-service-target]');
+    if(!target) return;
+    const type = target.dataset.serviceTarget;
+    if(type !== 'logistics' && type !== 'trade-insurance') return;
+    e.preventDefault();
+    e.stopPropagation();
+    openServiceModal(type);
+  });
 
   if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded',()=>setTimeout(bindExactServices,500));
-  }else{
-    setTimeout(bindExactServices,500);
+    document.addEventListener('DOMContentLoaded', () => setTimeout(markExactServiceTargets, 600));
+  } else {
+    setTimeout(markExactServiceTargets, 600);
   }
 
-  // Re-bind sekali setelah render dinamis, bukan interval yang mengganggu.
-  setTimeout(bindExactServices,1800);
+  // Re-run once after dynamic render, no interval.
+  setTimeout(markExactServiceTargets, 1800);
 })();
 </script>
 
