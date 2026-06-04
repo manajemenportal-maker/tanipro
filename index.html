@@ -363,6 +363,27 @@
     .product-detail-actions .dark{background:#111827;color:#fff}
     @media(max-width:760px){.product-detail-body{grid-template-columns:1fr;padding:15px}.product-detail-mainpic{height:250px}.product-detail-thumbs img,.product-detail-thumbs video{height:64px}.product-detail-info h3{font-size:20px}}
 
+  
+    /* PUBLIC BUYER RFQ MODAL - NOT SELLER DASHBOARD */
+    .buyer-rfq-modal{position:fixed;inset:0;background:rgba(17,24,39,.62);z-index:320;display:none;align-items:center;justify-content:center;padding:16px}
+    .buyer-rfq-modal.show{display:flex}
+    .buyer-rfq-panel{width:min(620px,96vw);max-height:92vh;background:#fff;border-radius:24px;box-shadow:0 28px 80px rgba(0,0,0,.32);overflow:auto}
+    .buyer-rfq-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding:20px 22px;background:linear-gradient(135deg,#fff7ed,#fff);border-bottom:1px solid var(--line)}
+    .buyer-rfq-head h2{margin:0;font-size:24px}
+    .buyer-rfq-head p{margin:6px 0 0;color:#6b7280;font-size:13px;line-height:1.45}
+    .buyer-rfq-close{border:0;background:#f3f4f6;border-radius:999px;width:40px;height:40px;font-size:23px;cursor:pointer}
+    .buyer-rfq-body{padding:20px 22px}
+    .buyer-rfq-form{display:grid;gap:12px}
+    .buyer-rfq-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .buyer-rfq-field label{display:block;font-size:12px;font-weight:900;color:#4b5563;margin-bottom:6px}
+    .buyer-rfq-field input,.buyer-rfq-field textarea{width:100%;border:1px solid var(--line);border-radius:13px;padding:12px;outline:0;font-family:inherit}
+    .buyer-rfq-field textarea{min-height:95px;resize:vertical}
+    .buyer-rfq-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .buyer-rfq-actions button{border:0;border-radius:999px;padding:13px 16px;font-weight:900;cursor:pointer}
+    .buyer-rfq-actions .primary{background:var(--orange);color:#fff}
+    .buyer-rfq-actions .light{background:#f3f4f6;color:#111827}
+    @media(max-width:760px){.buyer-rfq-grid{grid-template-columns:1fr}.buyer-rfq-body{padding:15px}}
+
   </style>
 </head>
 <body>
@@ -3805,6 +3826,222 @@ function escapeHTML(v){
     setTimeout(bindProductClicks,500);
   }
   setInterval(bindProductClicks,1500);
+})();
+</script>
+
+
+  <div class="buyer-rfq-modal" id="buyerRFQModal" onclick="closeBuyerRFQ(event)">
+    <section class="buyer-rfq-panel" onclick="event.stopPropagation()">
+      <div class="buyer-rfq-head">
+        <div>
+          <h2>Request Quotation</h2>
+          <p>Form ini untuk pembeli. Tidak masuk ke dashboard supplier.</p>
+        </div>
+        <button class="buyer-rfq-close" onclick="closeBuyerRFQ()">×</button>
+      </div>
+      <div class="buyer-rfq-body">
+        <form class="buyer-rfq-form" onsubmit="submitBuyerRFQ(event)">
+          <div class="buyer-rfq-grid">
+            <div class="buyer-rfq-field">
+              <label>Produk</label>
+              <input id="buyerRfqProduct" placeholder="Nama produk" required>
+            </div>
+            <div class="buyer-rfq-field">
+              <label>Supplier</label>
+              <input id="buyerRfqSupplier" placeholder="Nama supplier">
+            </div>
+            <div class="buyer-rfq-field">
+              <label>Jumlah / Qty</label>
+              <input id="buyerRfqQty" placeholder="Contoh: 2 unit">
+            </div>
+            <div class="buyer-rfq-field">
+              <label>Nama Pembeli</label>
+              <input id="buyerRfqName" placeholder="Nama Anda">
+            </div>
+            <div class="buyer-rfq-field">
+              <label>WhatsApp / Email</label>
+              <input id="buyerRfqContact" placeholder="0812xxxx / email@domain.com" required>
+            </div>
+            <div class="buyer-rfq-field">
+              <label>Lokasi Pengiriman</label>
+              <input id="buyerRfqLocation" placeholder="Kota / Provinsi">
+            </div>
+            <div class="buyer-rfq-field" style="grid-column:1/-1">
+              <label>Catatan Kebutuhan</label>
+              <textarea id="buyerRfqNote" placeholder="Tuliskan spesifikasi, target harga, waktu kebutuhan, dan catatan lain."></textarea>
+            </div>
+          </div>
+          <div class="buyer-rfq-actions">
+            <button class="primary" type="submit">Kirim RFQ</button>
+            <button class="light" type="button" onclick="closeBuyerRFQ()">Batal</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
+
+<script>
+/* FINAL FIX: Buyer click must NOT open seller dashboard */
+(function(){
+  function readJSON(key, fallback){
+    try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));}catch(e){return fallback;}
+  }
+  function writeJSON(key, value){localStorage.setItem(key, JSON.stringify(value));}
+  function allProducts(){
+    const supplierProducts = readJSON('tp_products', []);
+    const staticProducts = (window.products || []).map((p,i)=>({
+      id:'STATIC-'+i,
+      name:p.name,
+      category:p.cat || p.category || 'tractor',
+      price:p.price,
+      moq:p.moq,
+      supplierCompany:p.supplier,
+      description:p.name,
+      status:'active',
+      icon:p.icon,
+      isStatic:true
+    }));
+    return [...supplierProducts, ...staticProducts];
+  }
+  function findProduct(id){
+    return allProducts().find(p => String(p.id) === String(id)) || null;
+  }
+  function productIdFromCard(card){
+    if(card.dataset.productId) return card.dataset.productId;
+    const title = (card.querySelector('.title')?.textContent || '').trim();
+    const p = allProducts().find(x => (x.name || '').trim() === title);
+    return p ? p.id : '';
+  }
+
+  window.openBuyerRFQ = function(productId){
+    const p = findProduct(productId) || {};
+    const modal = document.getElementById('buyerRFQModal');
+    if(!modal) return alert('Form RFQ pembeli belum tersedia.');
+
+    const set=(id,v)=>{const el=document.getElementById(id); if(el) el.value=v||'';};
+    set('buyerRfqProduct', p.name || '');
+    set('buyerRfqSupplier', p.supplierCompany || p.company || p.supplier || '');
+    set('buyerRfqQty', '');
+    set('buyerRfqName', '');
+    set('buyerRfqContact', '');
+    set('buyerRfqLocation', '');
+    set('buyerRfqNote', p.name ? `Saya ingin meminta penawaran untuk ${p.name}.` : '');
+
+    modal.classList.add('show');
+    modal.style.display='flex';
+  };
+
+  window.closeBuyerRFQ = function(e){
+    if(e && e.target && e.target.id !== 'buyerRFQModal') return;
+    const modal=document.getElementById('buyerRFQModal');
+    if(modal){
+      modal.classList.remove('show');
+      modal.style.display='none';
+    }
+  };
+
+  window.submitBuyerRFQ = async function(e){
+    e.preventDefault();
+    const data={
+      id:'RFQ-'+Date.now(),
+      product:document.getElementById('buyerRfqProduct')?.value || '',
+      supplier:document.getElementById('buyerRfqSupplier')?.value || '',
+      qty:document.getElementById('buyerRfqQty')?.value || '',
+      buyerName:document.getElementById('buyerRfqName')?.value || '',
+      contact:document.getElementById('buyerRfqContact')?.value || '',
+      location:document.getElementById('buyerRfqLocation')?.value || '',
+      note:document.getElementById('buyerRfqNote')?.value || '',
+      status:'new',
+      source:'public-product-rfq',
+      createdAt:new Date().toISOString()
+    };
+    if(!data.product) return alert('Produk wajib diisi.');
+    if(!data.contact) return alert('WhatsApp / Email wajib diisi.');
+
+    const list=readJSON('buyer_rfqs',[]);
+    list.unshift(data);
+    writeJSON('buyer_rfqs',list);
+
+    try{
+      if(window.firebaseAdd){
+        await firebaseAdd('rfqRequests', data);
+      }
+    }catch(err){
+      console.warn('RFQ belum masuk Firebase, tersimpan lokal:', err);
+    }
+
+    closeBuyerRFQ();
+    alert('RFQ berhasil dikirim. Supplier/admin bisa menindaklanjuti dari data RFQ.');
+  };
+
+  // Override semua fungsi RFQ lama yang sebelumnya membuka dashboard user/supplier.
+  window.openRFQModalClean = function(productId){
+    openBuyerRFQ(productId);
+  };
+  window.openRFQFromProduct = function(productId){
+    closeProductDetail && closeProductDetail();
+    openBuyerRFQ(productId);
+  };
+
+  function bindPublicProductClicks(){
+    document.querySelectorAll('.product').forEach(card=>{
+      card.style.cursor='pointer';
+      const id = productIdFromCard(card);
+      if(id) card.dataset.productId = id;
+
+      // Detail produk publik
+      card.onclick = function(e){
+        if(e.target.closest('button,a,input,select,textarea')) return;
+        const pid = productIdFromCard(card);
+        if(pid && typeof openProductDetail === 'function') openProductDetail(pid);
+      };
+
+      ['.photo','.title','.price','.supplier'].forEach(sel=>{
+        const el=card.querySelector(sel);
+        if(el){
+          el.onclick=function(e){
+            e.stopPropagation();
+            const pid=productIdFromCard(card);
+            if(pid && typeof openProductDetail === 'function') openProductDetail(pid);
+          };
+        }
+      });
+
+      // Contact/RFQ publik, bukan dashboard supplier
+      card.querySelectorAll('.quote,.chat').forEach(btn=>{
+        btn.onclick=function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          const pid=productIdFromCard(card);
+          openBuyerRFQ(pid);
+        };
+      });
+    });
+  }
+
+  const oldRenderProducts = window.renderProducts;
+  if(typeof oldRenderProducts === 'function'){
+    window.renderProducts = function(list){
+      oldRenderProducts(list);
+      setTimeout(bindPublicProductClicks,100);
+    };
+  }
+
+  const oldRefresh = window.tpRefreshMarketplaceProducts;
+  if(typeof oldRefresh === 'function'){
+    window.tpRefreshMarketplaceProducts = function(){
+      oldRefresh();
+      setTimeout(bindPublicProductClicks,100);
+    };
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded',()=>setTimeout(bindPublicProductClicks,600));
+  }else{
+    setTimeout(bindPublicProductClicks,600);
+  }
+  setInterval(bindPublicProductClicks,1600);
 })();
 </script>
 
