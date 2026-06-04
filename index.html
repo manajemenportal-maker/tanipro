@@ -135,6 +135,14 @@
     .account-item small{color:#6b7280}
     @media(max-width:760px){.account-fab{right:12px;bottom:226px;padding:11px 13px;font-size:12px}.account-panel{padding:15px}.account-layout{grid-template-columns:1fr}.account-tabs{position:static;display:flex;overflow:auto}.account-tabs button{min-width:142px}.account-grid{grid-template-columns:1fr}.account-item{display:block}.account-item .account-actions{margin-top:10px}}
 
+  
+    .firebase-debug{position:fixed;left:18px;bottom:112px;max-width:360px;background:#111827;color:#fff;border-radius:16px;padding:13px 14px;font-size:12px;line-height:1.45;z-index:200;box-shadow:0 16px 38px rgba(0,0,0,.25);display:none}
+    .firebase-debug.show{display:block}
+    .firebase-debug b{color:#fbbf24}
+    .firebase-debug code{color:#93c5fd;word-break:break-word}
+    .firebase-debug button{margin-top:8px;border:0;border-radius:999px;background:#fff;color:#111827;padding:7px 10px;font-weight:900;cursor:pointer}
+    @media(max-width:760px){.firebase-debug{left:10px;right:10px;bottom:128px;max-width:none}}
+
   </style>
 </head>
 <body>
@@ -1213,6 +1221,76 @@ function escapeHTML(v){
   }else{
     bindFinalClicks();
   }
+})();
+</script>
+
+
+  <div class="firebase-debug" id="firebaseDebugBox">
+    <b>Firebase Debug</b>
+    <div id="firebaseDebugText">Menunggu pengecekan...</div>
+    <button onclick="document.getElementById('firebaseDebugBox').classList.remove('show')">Tutup</button>
+  </div>
+
+
+<script>
+// TANI PRO FINAL FIREBASE DEBUG
+(function(){
+  function showFirebaseDebug(title, err){
+    const box=document.getElementById('firebaseDebugBox');
+    const txt=document.getElementById('firebaseDebugText');
+    if(!box||!txt) return;
+    const code = err && (err.code || err.name) ? (err.code || err.name) : 'unknown';
+    const msg = err && err.message ? err.message : String(err || 'Tidak ada pesan error');
+    txt.innerHTML = `<div>${title}</div><div>Kode: <code>${code}</code></div><div>Pesan: <code>${msg}</code></div>`;
+    box.classList.add('show');
+    console.error(title, err);
+  }
+
+  window.testFirebaseConnection = async function(){
+    try{
+      if(!window.taniProFirebase){
+        throw new Error('window.taniProFirebase belum terbentuk. Script Firebase module gagal load. Cek internet/CDN gstatic atau script type=module.');
+      }
+      const f=window.taniProFirebase;
+      const snap=await f.getDocs(f.collection(f.db,'suppliers'));
+      alert('Firebase OK. Data suppliers terbaca: '+snap.size);
+      return true;
+    }catch(err){
+      showFirebaseDebug('Firebase gagal dibaca.', err);
+      return false;
+    }
+  };
+
+  window.loadSuppliersFromFirebase = async function(){
+    try{
+      if(!window.taniProFirebase){
+        throw new Error('Firebase belum siap. Cek internet/CDN gstatic atau script type=module.');
+      }
+      const f=window.taniProFirebase;
+      const snap=await f.getDocs(f.collection(f.db,'suppliers'));
+      const data=snap.docs.map(d=>({id:d.id,...d.data()}));
+      if(typeof saveStoredSuppliers === 'function'){
+        saveStoredSuppliers(data.map((s,i)=>typeof normalizeSupplier==='function'?normalizeSupplier(s,i):s));
+      }
+      if(typeof renderSupplierAdminTable === 'function') renderSupplierAdminTable();
+      return data;
+    }catch(err){
+      showFirebaseDebug('Gagal ambil data Firebase.', err);
+      return [];
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    const adminToolbar=document.querySelector('.admin-toolbar');
+    if(adminToolbar && !document.getElementById('btnTestFirebase')){
+      const btn=document.createElement('button');
+      btn.id='btnTestFirebase';
+      btn.type='button';
+      btn.textContent='Test Firebase';
+      btn.onclick=window.testFirebaseConnection;
+      adminToolbar.prepend(btn);
+    }
+  });
 })();
 </script>
 
