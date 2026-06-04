@@ -384,6 +384,23 @@
     .buyer-rfq-actions .light{background:#f3f4f6;color:#111827}
     @media(max-width:760px){.buyer-rfq-grid{grid-template-columns:1fr}.buyer-rfq-body{padding:15px}}
 
+  
+    /* CHAT SUPPLIER REAL ACTION */
+    .chat-choice-modal{position:fixed;inset:0;background:rgba(17,24,39,.62);z-index:330;display:none;align-items:center;justify-content:center;padding:16px}
+    .chat-choice-modal.show{display:flex}
+    .chat-choice-panel{width:min(520px,96vw);background:#fff;border-radius:24px;box-shadow:0 28px 80px rgba(0,0,0,.32);overflow:hidden}
+    .chat-choice-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:20px 22px;background:linear-gradient(135deg,#ecfdf5,#fff);border-bottom:1px solid var(--line)}
+    .chat-choice-head h2{margin:0;font-size:23px}
+    .chat-choice-head p{margin:6px 0 0;color:#6b7280;font-size:13px;line-height:1.45}
+    .chat-choice-close{border:0;background:#f3f4f6;border-radius:999px;width:40px;height:40px;font-size:23px;cursor:pointer}
+    .chat-choice-body{padding:20px 22px}
+    .chat-product-box{border:1px solid #eee;border-radius:16px;padding:13px;background:#f9fafb;margin-bottom:14px;font-size:13px;line-height:1.5}
+    .chat-actions{display:grid;gap:10px}
+    .chat-actions button,.chat-actions a{border:0;border-radius:999px;padding:13px 15px;font-weight:900;cursor:pointer;text-align:center;text-decoration:none;display:block}
+    .chat-actions .wa{background:#16a34a;color:#fff}
+    .chat-actions .inq{background:var(--orange);color:#fff}
+    .chat-actions .light{background:#f3f4f6;color:#111827}
+
   </style>
 </head>
 <body>
@@ -4042,6 +4059,221 @@ function escapeHTML(v){
     setTimeout(bindPublicProductClicks,600);
   }
   setInterval(bindPublicProductClicks,1600);
+})();
+</script>
+
+
+  <div class="chat-choice-modal" id="chatChoiceModal" onclick="closeChatChoice(event)">
+    <section class="chat-choice-panel" onclick="event.stopPropagation()">
+      <div class="chat-choice-head">
+        <div>
+          <h2>Chat Supplier</h2>
+          <p>Pilih cara menghubungi supplier untuk produk ini.</p>
+        </div>
+        <button class="chat-choice-close" onclick="closeChatChoice()">×</button>
+      </div>
+      <div class="chat-choice-body">
+        <div class="chat-product-box" id="chatProductBox">Produk belum dipilih.</div>
+        <div class="chat-actions" id="chatActionBox"></div>
+      </div>
+    </section>
+  </div>
+
+
+<script>
+/* FINAL FIX: Chat Supplier Real WhatsApp / Inquiry */
+(function(){
+  function readJSON(key, fallback){
+    try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));}catch(e){return fallback;}
+  }
+  function writeJSON(key, value){localStorage.setItem(key, JSON.stringify(value));}
+  function esc(v){
+    return String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function normalizePhone(phone){
+    let p = String(phone || '').replace(/[^\d+]/g,'');
+    if(!p) return '';
+    if(p.startsWith('+')) p = p.slice(1);
+    if(p.startsWith('0')) p = '62' + p.slice(1);
+    if(!p.startsWith('62') && p.length > 8) p = '62' + p;
+    return p;
+  }
+  function allProducts(){
+    const supplierProducts = readJSON('tp_products', []);
+    const staticProducts = (window.products || []).map((p,i)=>({
+      id:'STATIC-'+i,
+      name:p.name,
+      category:p.cat || p.category || 'tractor',
+      price:p.price,
+      moq:p.moq,
+      supplierCompany:p.supplier,
+      supplierPhone:p.phone || '',
+      description:p.name,
+      status:'active',
+      icon:p.icon,
+      isStatic:true
+    }));
+    return [...supplierProducts, ...staticProducts];
+  }
+  function findProduct(id){
+    return allProducts().find(p => String(p.id) === String(id)) || null;
+  }
+  function productIdFromCard(card){
+    if(card.dataset.productId) return card.dataset.productId;
+    const title = (card.querySelector('.title')?.textContent || '').trim();
+    const p = allProducts().find(x => (x.name || '').trim() === title);
+    return p ? p.id : '';
+  }
+  function findSupplierPhone(product){
+    if(!product) return '';
+    if(product.supplierPhone || product.phone || product.whatsapp) return product.supplierPhone || product.phone || product.whatsapp;
+
+    const suppliers = readJSON('taniProSuppliers', []);
+    const s = suppliers.find(x =>
+      (product.ownerUserId && x.ownerUserId === product.ownerUserId) ||
+      (product.ownerEmail && x.email === product.ownerEmail) ||
+      (product.supplierCompany && x.company === product.supplierCompany) ||
+      (product.company && x.company === product.company)
+    );
+    return s ? (s.phone || s.whatsapp || s.wa || '') : '';
+  }
+  function makeWaMessage(product){
+    return `Halo, saya tertarik dengan produk ${product?.name || ''}. Mohon info harga, stok, spesifikasi, MOQ, dan pengiriman.`;
+  }
+
+  window.openChatSupplier = function(productId){
+    const product = findProduct(productId);
+    if(!product) return alert('Produk tidak ditemukan.');
+
+    const modal = document.getElementById('chatChoiceModal');
+    const info = document.getElementById('chatProductBox');
+    const actions = document.getElementById('chatActionBox');
+    if(!modal || !info || !actions) return;
+
+    const rawPhone = findSupplierPhone(product);
+    const phone = normalizePhone(rawPhone);
+    const waText = encodeURIComponent(makeWaMessage(product));
+    const waUrl = phone ? `https://wa.me/${phone}?text=${waText}` : '';
+
+    info.innerHTML = `
+      <b>${esc(product.name || 'Produk')}</b><br>
+      Supplier: ${esc(product.supplierCompany || product.company || product.supplier || 'TANI PRO Supplier')}<br>
+      Harga: ${esc(product.price || '-')} · MOQ: ${esc(product.moq || '-')}<br>
+      ${phone ? 'WhatsApp supplier terdeteksi.' : 'Nomor WhatsApp supplier belum tersedia, gunakan inquiry.'}
+    `;
+
+    actions.innerHTML = `
+      ${phone ? `<a class="wa" href="${waUrl}" target="_blank" rel="noopener">Chat via WhatsApp</a>` : ''}
+      <button class="inq" type="button" onclick="saveProductInquiry('${String(product.id).replace(/'/g,"\\'")}')">Simpan Inquiry ke Supplier</button>
+      <button class="light" type="button" onclick="openBuyerRFQ('${String(product.id).replace(/'/g,"\\'")}')">Buat RFQ Lengkap</button>
+    `;
+
+    modal.classList.add('show');
+    modal.style.display='flex';
+  };
+
+  window.closeChatChoice = function(e){
+    if(e && e.target && e.target.id !== 'chatChoiceModal') return;
+    const modal = document.getElementById('chatChoiceModal');
+    if(modal){
+      modal.classList.remove('show');
+      modal.style.display='none';
+    }
+  };
+
+  window.saveProductInquiry = async function(productId){
+    const product = findProduct(productId);
+    if(!product) return alert('Produk tidak ditemukan.');
+
+    const name = prompt('Nama pembeli:', '') || '';
+    const contact = prompt('WhatsApp / Email pembeli:', '') || '';
+    if(!contact) return alert('Kontak wajib diisi agar supplier bisa menghubungi.');
+
+    const inquiry = {
+      id:'INQ-'+Date.now(),
+      productId:product.id,
+      product:product.name || '',
+      supplier:product.supplierCompany || product.company || product.supplier || '',
+      supplierOwnerUserId:product.ownerUserId || '',
+      buyerName:name,
+      contact,
+      message:makeWaMessage(product),
+      status:'new',
+      source:'chat-supplier',
+      createdAt:new Date().toISOString()
+    };
+
+    const list = readJSON('buyer_inquiries', []);
+    list.unshift(inquiry);
+    writeJSON('buyer_inquiries', list);
+
+    try{
+      if(window.firebaseAdd){
+        await firebaseAdd('inquiries', inquiry);
+      }
+    }catch(err){
+      console.warn('Inquiry belum masuk Firebase, tersimpan lokal:', err);
+    }
+
+    closeChatChoice();
+    alert('Inquiry tersimpan dan siap ditindaklanjuti supplier/admin.');
+  };
+
+  // Override tombol chat di detail produk agar bukan alert kosong.
+  const oldOpenProductDetail = window.openProductDetail;
+  if(typeof oldOpenProductDetail === 'function'){
+    window.openProductDetail = function(productId){
+      oldOpenProductDetail(productId);
+      setTimeout(()=>{
+        document.querySelectorAll('.product-detail-actions .dark').forEach(btn=>{
+          if((btn.textContent || '').toLowerCase().includes('chat')){
+            btn.onclick = function(e){
+              e.preventDefault();
+              openChatSupplier(productId);
+            };
+          }
+        });
+      },80);
+    };
+  }
+
+  function bindChatButtons(){
+    document.querySelectorAll('.product').forEach(card=>{
+      const chat = card.querySelector('.chat');
+      const quote = card.querySelector('.quote');
+      const id = productIdFromCard(card);
+      if(chat){
+        chat.onclick = function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          openChatSupplier(id);
+        };
+      }
+      if(quote){
+        quote.onclick = function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          if(typeof openBuyerRFQ === 'function') openBuyerRFQ(id);
+          else openChatSupplier(id);
+        };
+      }
+    });
+  }
+
+  const oldRefresh = window.tpRefreshMarketplaceProducts;
+  if(typeof oldRefresh === 'function'){
+    window.tpRefreshMarketplaceProducts = function(){
+      oldRefresh();
+      setTimeout(bindChatButtons,100);
+    };
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded',()=>setTimeout(bindChatButtons,700));
+  }else{
+    setTimeout(bindChatButtons,700);
+  }
+  setInterval(bindChatButtons,1600);
 })();
 </script>
 
