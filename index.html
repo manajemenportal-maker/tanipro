@@ -215,6 +215,30 @@
     .auth-note{background:#ecfdf5;border:1px solid #bbf7d0;color:#047857;border-radius:15px;padding:12px;font-size:13px;line-height:1.45;margin-bottom:14px}
     .auth-small{font-size:12px;color:var(--muted);line-height:1.45;margin-top:10px}
 
+  
+    /* CLEAR USER ACCOUNT FLOW */
+    .account-flow-banner{background:linear-gradient(135deg,#ecfdf5,#fff7ed);border:1px solid #bbf7d0;border-radius:18px;padding:16px;margin-bottom:14px}
+    .account-flow-banner h3{margin:0 0 8px;font-size:20px}
+    .account-flow-banner p{margin:0;color:#374151;font-size:13px;line-height:1.5}
+    .account-step-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+    .account-step{border:1px solid var(--line);border-radius:16px;padding:13px;background:#fff;position:relative}
+    .account-step b{display:block;font-size:13px;margin-bottom:6px}
+    .account-step span{display:block;font-size:12px;color:#6b7280;line-height:1.4}
+    .account-step.active{border-color:#fb923c;background:#fff7ed}
+    .account-step.done{border-color:#86efac;background:#ecfdf5}
+    .account-dashboard-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .account-dashboard-actions button{border:0;border-radius:999px;padding:12px 15px;font-weight:900;cursor:pointer}
+    .account-dashboard-actions .main{background:var(--orange);color:#fff}
+    .account-dashboard-actions .green{background:#047857;color:#fff}
+    .account-dashboard-actions .dark{background:#111827;color:#fff}
+    .account-dashboard-actions .light{background:#f3f4f6;color:#111827}
+    .account-empty{border:1px dashed #d1d5db;border-radius:16px;padding:16px;background:#f9fafb;color:#4b5563;font-size:13px;line-height:1.5}
+    .auth-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+    .auth-choice button{border:1px solid var(--line);background:#fff;color:#111827;border-radius:15px;padding:14px;text-align:left;cursor:pointer;font-weight:900}
+    .auth-choice button.active{background:#111827;color:#fff;border-color:#111827}
+    .auth-choice small{display:block;margin-top:5px;font-weight:400;opacity:.8;line-height:1.35}
+    @media(max-width:760px){.account-step-grid{grid-template-columns:1fr}.auth-choice{grid-template-columns:1fr}}
+
   </style>
 </head>
 <body>
@@ -1064,8 +1088,11 @@ function escapeHTML(v){
         <button class="account-close" onclick="closeAccountCenter()">×</button>
       </div>
 
-      <div class="account-warning">
-        <b>Posisi menu user:</b> user klik <b>Akun Saya</b>. Setelah login, halaman ini menjadi dashboard masing-masing supplier/buyer. Admin tetap memakai <b>Admin Supplier Center</b>.
+      <div class="account-flow-banner" id="accountFlowBanner">
+        <h3 id="accountWelcomeTitle">Dashboard Akun TANI PRO</h3>
+        <p id="accountWelcomeText">Setelah daftar/login, user mengelola akun dari sini. Buyer fokus ke RFQ dan inquiry. Supplier harus isi data perusahaan, ajukan verifikasi, lalu upload produk setelah disetujui admin.</p>
+        <div class="account-step-grid" id="accountStepGrid"></div>
+        <div class="account-dashboard-actions" id="accountQuickActions"></div>
       </div>
 
       <div class="account-layout">
@@ -1705,8 +1732,12 @@ function escapeHTML(v){
 
         <form class="auth-form" id="registerForm" style="display:none" onsubmit="registerTaniUser(event)">
           <div>
-            <label>Jenis Akun</label>
-            <select id="regRole">
+            <label>Pilih jenis akun</label>
+            <div class="auth-choice">
+              <button type="button" id="chooseBuyer" class="active" onclick="chooseRegisterRole('buyer')">Buyer / Pembeli<small>Bisa kirim RFQ, minta penawaran, dan cari supplier.</small></button>
+              <button type="button" id="chooseSupplier" onclick="chooseRegisterRole('supplier')">Supplier / Penjual<small>Bisa ajukan perusahaan dan upload produk setelah verified.</small></button>
+            </div>
+            <select id="regRole" style="display:none">
               <option value="buyer">Buyer / Pembeli</option>
               <option value="supplier">Supplier / Penjual</option>
             </select>
@@ -1867,6 +1898,208 @@ function escapeHTML(v){
   }else{
     bindProfileSaveButton();
   }
+})();
+</script>
+
+
+<script>
+// CLEAR USER ACCOUNT FLOW SCRIPT
+(function(){
+  function safeParse(key, fallback){
+    try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));}catch(e){return fallback;}
+  }
+  function currentUser(){ return safeParse('taniProCurrentUser', null); }
+  function accountData(){ return safeParse('taniProUserAccount', {}); }
+
+  window.chooseRegisterRole = function(role){
+    const sel=document.getElementById('regRole');
+    if(sel) sel.value=role;
+    const buyer=document.getElementById('chooseBuyer');
+    const supplier=document.getElementById('chooseSupplier');
+    if(buyer) buyer.classList.toggle('active',role==='buyer');
+    if(supplier) supplier.classList.toggle('active',role==='supplier');
+  };
+
+  window.refreshAccountFlow = function(){
+    const user=currentUser();
+    const acc=accountData();
+    const role=(acc.role || user?.role || 'buyer');
+    const title=document.getElementById('accountWelcomeTitle');
+    const text=document.getElementById('accountWelcomeText');
+    const grid=document.getElementById('accountStepGrid');
+    const actions=document.getElementById('accountQuickActions');
+
+    if(title){
+      title.textContent = role==='supplier'
+        ? 'Dashboard Supplier TANI PRO'
+        : 'Dashboard Buyer TANI PRO';
+    }
+    if(text){
+      text.textContent = role==='supplier'
+        ? 'Alur supplier: lengkapi profil, isi data perusahaan, ajukan verifikasi ke admin, lalu upload produk. Produk baru tampil setelah disetujui.'
+        : 'Alur buyer: lengkapi profil, cari produk/supplier, kirim RFQ, lalu pantau inquiry dan penawaran.';
+    }
+
+    if(grid){
+      const hasProfile=!!(acc.name && (acc.email || acc.phone));
+      const hasCompany=!!(acc.company && acc.product);
+      const supplierStatus=(acc.supplierStatus || 'pending').toLowerCase();
+      const isVerified=supplierStatus==='verified' || supplierStatus==='approved';
+      const hasProducts=(safeParse('taniProMyProducts',[]).length>0);
+
+      const steps = role==='supplier'
+        ? [
+            ['1. Profil', hasProfile?'done':'active', hasProfile?'Profil sudah terisi.':'Isi nama, email/WA, dan role akun.'],
+            ['2. Perusahaan', hasCompany?'done':'active', hasCompany?'Data perusahaan sudah ada.':'Isi nama perusahaan, produk, alamat, dan deskripsi.'],
+            ['3. Verifikasi Admin', isVerified?'done':'active', isVerified?'Supplier sudah verified/approved.':'Klik Ajukan Supplier lalu tunggu admin approve.'],
+            ['4. Upload Produk', hasProducts?'done':(isVerified?'active':''), hasProducts?'Produk sudah dibuat.':'Upload produk setelah data supplier siap.']
+          ]
+        : [
+            ['1. Profil', hasProfile?'done':'active', hasProfile?'Profil buyer sudah terisi.':'Isi nama, email/WA.'],
+            ['2. Cari Produk', '', 'Gunakan Search atau kategori produk.'],
+            ['3. Kirim RFQ', '', 'Klik Quotation untuk minta penawaran.'],
+            ['4. Pantau Inquiry', '', 'Cek RFQ / Inquiry Saya.']
+          ];
+
+      grid.innerHTML=steps.map(s=>`<div class="account-step ${s[1]}"><b>${s[0]}</b><span>${s[2]}</span></div>`).join('');
+    }
+
+    if(actions){
+      if(role==='supplier'){
+        actions.innerHTML = `
+          <button class="main" onclick="goAccountTab('profile')">Isi Profil</button>
+          <button class="green" onclick="goAccountTab('company')">Isi Perusahaan / Ajukan Supplier</button>
+          <button class="dark" onclick="goAccountTab('products')">Upload Produk</button>
+          <button class="light" onclick="logoutTaniUserClean()">Logout</button>
+        `;
+      }else{
+        actions.innerHTML = `
+          <button class="main" onclick="openRFQModalClean && openRFQModalClean()">Buat Request Quotation</button>
+          <button class="green" onclick="goAccountTab('profile')">Lengkapi Profil</button>
+          <button class="dark" onclick="goAccountTab('rfq')">RFQ / Inquiry Saya</button>
+          <button class="light" onclick="logoutTaniUserClean()">Logout</button>
+        `;
+      }
+    }
+  };
+
+  window.goAccountTab = function(tab){
+    const label = tab==='company'?'perusahaan':tab==='products'?'produk':tab==='rfq'?'rfq':tab==='security'?'keamanan':'profil';
+    const btn=[...document.querySelectorAll('.account-tabs button')].find(b=>(b.textContent||'').toLowerCase().includes(label));
+    if(typeof showAccountTab==='function') showAccountTab(tab,btn);
+    if(typeof refreshAccountFlow==='function') setTimeout(refreshAccountFlow,80);
+  };
+
+  window.logoutTaniUserClean = function(){
+    localStorage.removeItem('taniProCurrentUser');
+    const drawer=document.getElementById('accountDrawer');
+    if(drawer){drawer.classList.remove('show');drawer.style.display='none';}
+    alert('Logout berhasil. Klik Akun Saya untuk login/daftar lagi.');
+  };
+
+  // Override register with clear next-step behavior
+  window.registerTaniUser = function(e){
+    e.preventDefault();
+    const role=document.getElementById('regRole')?.value || 'buyer';
+    const user={
+      id:'USER-'+Date.now(),
+      role,
+      name:document.getElementById('regName')?.value || '',
+      email:document.getElementById('regEmail')?.value || '',
+      phone:document.getElementById('regPhone')?.value || '',
+      createdAt:new Date().toISOString()
+    };
+    if(!user.name || !user.email || !user.phone){
+      alert('Nama, email, dan WhatsApp wajib diisi.');
+      return;
+    }
+
+    const users=safeParse('taniProUsers',[]);
+    users.unshift(user);
+    localStorage.setItem('taniProUsers',JSON.stringify(users));
+    localStorage.setItem('taniProCurrentUser',JSON.stringify(user));
+    localStorage.setItem('taniProUserAccount',JSON.stringify({
+      id:user.id,name:user.name,email:user.email,phone:user.phone,role:user.role,
+      supplierStatus:'pending'
+    }));
+
+    if(typeof closeAuthGate==='function') closeAuthGate();
+    if(typeof openAccountCenterDirect==='function') openAccountCenterDirect();
+    else {
+      const drawer=document.getElementById('accountDrawer');
+      if(drawer){drawer.classList.add('show');drawer.style.display='flex';}
+    }
+    if(typeof loadAccountProfile==='function') loadAccountProfile();
+    refreshAccountFlow();
+
+    if(role==='supplier'){
+      setTimeout(()=>goAccountTab('company'),120);
+      alert('Akun supplier berhasil dibuat. Lanjut isi Data Perusahaan lalu klik Ajukan / Update Supplier.');
+    }else{
+      setTimeout(()=>goAccountTab('profile'),120);
+      alert('Akun buyer berhasil dibuat. Lanjut lengkapi profil atau buat Request Quotation.');
+    }
+  };
+
+  // Override login with clear dashboard
+  const oldLogin = window.loginTaniUser;
+  window.loginTaniUser = function(e){
+    e.preventDefault();
+    const login=document.getElementById('loginEmail')?.value || '';
+    const users=safeParse('taniProUsers',[]);
+    let user=users.find(u=>u.email===login || u.phone===login);
+    if(!user){
+      alert('Akun belum ditemukan. Silakan klik tab Daftar dulu.');
+      if(typeof showAuthTab==='function') showAuthTab('register');
+      const em=document.getElementById('regEmail'); if(em && login.includes('@')) em.value=login;
+      const ph=document.getElementById('regPhone'); if(ph && !login.includes('@')) ph.value=login;
+      return;
+    }
+    localStorage.setItem('taniProCurrentUser',JSON.stringify(user));
+    const oldAcc=safeParse('taniProUserAccount',{});
+    localStorage.setItem('taniProUserAccount',JSON.stringify({...oldAcc,...user}));
+    if(typeof closeAuthGate==='function') closeAuthGate();
+    if(typeof openAccountCenterDirect==='function') openAccountCenterDirect();
+    if(typeof loadAccountProfile==='function') loadAccountProfile();
+    refreshAccountFlow();
+    alert('Login berhasil. Silakan kelola akun sesuai menu dashboard.');
+  };
+
+  // Make save profile refresh the dashboard flow
+  const oldSave = window.saveAccountProfile;
+  window.saveAccountProfile = async function(){
+    if(typeof oldSave==='function') await oldSave();
+    refreshAccountFlow();
+  };
+
+  // Make supplier submission clearer
+  const oldSubmitSupplier = window.submitSupplierFromAccount;
+  window.submitSupplierFromAccount = async function(){
+    if(typeof saveAccountProfile==='function') await saveAccountProfile();
+    if(typeof oldSubmitSupplier==='function') await oldSubmitSupplier();
+    const acc=safeParse('taniProUserAccount',{});
+    acc.supplierStatus='pending';
+    localStorage.setItem('taniProUserAccount',JSON.stringify(acc));
+    refreshAccountFlow();
+    alert('Pengajuan supplier masuk status PENDING. Admin akan approve dari Admin Supplier Center.');
+  };
+
+  // Ensure account open refreshes dashboard
+  const oldOpenDirect = window.openAccountCenterDirect;
+  window.openAccountCenterDirect = function(){
+    if(typeof oldOpenDirect==='function') oldOpenDirect();
+    else {
+      const drawer=document.getElementById('accountDrawer');
+      if(drawer){drawer.classList.add('show');drawer.style.display='flex';}
+    }
+    if(typeof loadAccountProfile==='function') loadAccountProfile();
+    refreshAccountFlow();
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    chooseRegisterRole('buyer');
+    setTimeout(refreshAccountFlow,300);
+  });
 })();
 </script>
 
