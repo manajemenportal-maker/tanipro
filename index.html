@@ -296,6 +296,27 @@
       .tp-btns{margin-top:10px}
     }
 
+  
+    /* PRODUCT PHOTO ENHANCEMENT */
+    .tp-photo-uploader{border:2px dashed #d1d5db;border-radius:18px;padding:16px;background:#f9fafb;text-align:center;cursor:pointer}
+    .tp-photo-uploader input{display:none}
+    .tp-photo-preview{width:100%;height:180px;border-radius:16px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:10px;border:1px solid #eee}
+    .tp-photo-preview img{width:100%;height:100%;object-fit:cover}
+    .tp-photo-preview span{font-size:42px}
+    .tp-product-card-list{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px}
+    .tp-product-card{border:1px solid #eee;border-radius:18px;overflow:hidden;background:#fff}
+    .tp-product-card .pic{height:160px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .tp-product-card .pic img{width:100%;height:100%;object-fit:cover}
+    .tp-product-card .pic span{font-size:46px}
+    .tp-product-card .body{padding:13px}
+    .tp-product-card .body b{display:block;font-size:15px;margin-bottom:5px}
+    .tp-product-card .body small{display:block;color:#6b7280;line-height:1.4}
+    .tp-product-card .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+    .tp-product-card .meta em{font-style:normal;background:#f3f4f6;border-radius:999px;padding:5px 8px;font-size:11px;color:#374151}
+    .tp-product-card .status-pending{background:#fff7ed!important;color:#c2410c!important}
+    .tp-product-card .status-active{background:#ecfdf5!important;color:#047857!important}
+    @media(max-width:760px){.tp-product-card-list{grid-template-columns:1fr}.tp-photo-preview{height:150px}}
+
   </style>
 </head>
 <body>
@@ -2258,16 +2279,33 @@ function escapeHTML(v){
 
           <div id="tpPanelProducts" class="tp-card" style="display:none">
             <h3>Produk Saya</h3>
+            <div class="tp-alert">
+              Lengkapi produk supplier dengan foto, kategori, harga, MOQ, lokasi, stok, dan deskripsi. Produk masuk status <b>PENDING</b> sampai admin approve.
+            </div>
             <div class="tp-grid">
-              <div class="tp-field"><label>Nama Produk</label><input id="tpProdName" placeholder="Traktor 4WD 50HP"></div>
-              <div class="tp-field"><label>Kategori</label><input id="tpProdCat" placeholder="tractor / pump / harvester"></div>
-              <div class="tp-field"><label>Harga</label><input id="tpProdPrice" placeholder="Rp / USD"></div>
-              <div class="tp-field"><label>MOQ</label><input id="tpProdMoq" placeholder="MOQ: 1 set"></div>
+              <label class="tp-photo-uploader">
+                <div class="tp-photo-preview" id="tpProdPhotoPreview"><span>📷</span></div>
+                <b>Klik untuk upload foto produk</b><br>
+                <small>Foto tersimpan sementara di browser. Nanti bisa kita sambungkan ke Firebase Storage.</small>
+                <input id="tpProdPhoto" type="file" accept="image/*" onchange="tpPreviewProductPhoto(event)">
+              </label>
+              <div class="tp-grid">
+                <div class="tp-field"><label>Nama Produk</label><input id="tpProdName" placeholder="Traktor 4WD 50HP"></div>
+                <div class="tp-field"><label>Kategori</label><select id="tpProdCat"><option value="tractor">Tractor</option><option value="pump">Irrigation Pump</option><option value="harvester">Harvester</option><option value="sprayer">Sprayer</option><option value="parts">Spare Parts</option><option value="other">Other</option></select></div>
+                <div class="tp-field"><label>Harga</label><input id="tpProdPrice" placeholder="Rp 250.000.000 / USD 12,000"></div>
+                <div class="tp-field"><label>MOQ</label><input id="tpProdMoq" placeholder="MOQ: 1 set"></div>
+              </div>
+              <div class="tp-field"><label>Lokasi Barang</label><input id="tpProdLocation" placeholder="Tangerang, Banten / Shandong, China"></div>
+              <div class="tp-field"><label>Stok / Kapasitas</label><input id="tpProdStock" placeholder="Ready stock 5 unit / produksi 20 unit per bulan"></div>
+              <div class="tp-field"><label>Kondisi</label><select id="tpProdCondition"><option value="new">Baru</option><option value="used">Bekas</option><option value="oem">OEM / Custom</option></select></div>
+              <div class="tp-field"><label>Garansi</label><input id="tpProdWarranty" placeholder="12 bulan / spare part support"></div>
+              <div class="tp-field" style="grid-column:1/-1"><label>Deskripsi Produk</label><textarea id="tpProdDesc" placeholder="Jelaskan spesifikasi, power, kapasitas, engine, aksesoris, dan keunggulan produk."></textarea></div>
             </div>
             <div class="tp-btns">
               <button class="tp-btn primary" onclick="tpAddProduct()">Tambah Produk</button>
+              <button class="tp-btn" onclick="tpClearProductForm()">Bersihkan Form</button>
             </div>
-            <div class="tp-list" id="tpProductList"></div>
+            <div class="tp-product-card-list" id="tpProductList"></div>
           </div>
 
           <div id="tpPanelRfq" class="tp-card" style="display:none">
