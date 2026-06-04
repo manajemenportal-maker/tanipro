@@ -239,6 +239,63 @@
     .auth-choice small{display:block;margin-top:5px;font-weight:400;opacity:.8;line-height:1.35}
     @media(max-width:760px){.account-step-grid{grid-template-columns:1fr}.auth-choice{grid-template-columns:1fr}}
 
+  
+    /* ===== TANI PRO WORKING ACCOUNT MODULE ===== */
+    #authGate,
+    #accountDrawer{display:none!important}
+    .tp-modal{position:fixed;inset:0;background:rgba(17,24,39,.62);z-index:260;display:none;align-items:center;justify-content:center;padding:16px}
+    .tp-modal.show{display:flex}
+    .tp-panel{width:min(1120px,96vw);max-height:92vh;background:#fff;border-radius:24px;box-shadow:0 28px 80px rgba(0,0,0,.32);overflow:auto}
+    .tp-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding:20px 22px;background:linear-gradient(135deg,#fff7ed,#ecfdf5);border-bottom:1px solid var(--line)}
+    .tp-head h2{margin:0;font-size:25px}
+    .tp-head p{margin:6px 0 0;color:#4b5563;font-size:13px;line-height:1.45}
+    .tp-close{border:0;background:#fff;border-radius:999px;width:40px;height:40px;font-size:23px;cursor:pointer;box-shadow:0 8px 18px rgba(0,0,0,.08)}
+    .tp-body{padding:20px 22px}
+    .tp-auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+    .tp-auth-tabs button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:12px;font-weight:900;cursor:pointer}
+    .tp-auth-tabs button.active{background:#111827;color:#fff;border-color:#111827}
+    .tp-form{display:grid;gap:12px}
+    .tp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .tp-field label{display:block;font-size:12px;font-weight:900;color:#4b5563;margin-bottom:6px}
+    .tp-field input,.tp-field select,.tp-field textarea{width:100%;border:1px solid var(--line);border-radius:13px;padding:12px;outline:0;font-family:inherit}
+    .tp-field textarea{min-height:92px;resize:vertical}
+    .tp-btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .tp-btn{border:0;border-radius:999px;padding:12px 15px;font-weight:900;cursor:pointer;background:#f3f4f6;color:#111827}
+    .tp-btn.primary{background:var(--orange);color:#fff}
+    .tp-btn.green{background:#047857;color:#fff}
+    .tp-btn.dark{background:#111827;color:#fff}
+    .tp-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .tp-choice button{border:1px solid var(--line);background:#fff;border-radius:16px;padding:14px;text-align:left;font-weight:900;cursor:pointer}
+    .tp-choice button.active{background:#111827;color:#fff;border-color:#111827}
+    .tp-choice small{display:block;margin-top:5px;font-weight:400;opacity:.82;line-height:1.35}
+    .tp-dashboard{display:none}
+    .tp-dashboard.show{display:block}
+    .tp-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .tp-tabs button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 13px;font-weight:900;cursor:pointer}
+    .tp-tabs button.active{background:#111827;color:#fff;border-color:#111827}
+    .tp-card{border:1px solid var(--line);border-radius:18px;padding:16px;background:#fff;margin-bottom:14px}
+    .tp-card h3{margin:0 0 12px;font-size:18px}
+    .tp-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0 16px}
+    .tp-step{border:1px solid var(--line);border-radius:16px;padding:12px;background:#fff}
+    .tp-step.done{border-color:#86efac;background:#ecfdf5}
+    .tp-step.active{border-color:#fb923c;background:#fff7ed}
+    .tp-step b{display:block;font-size:13px;margin-bottom:6px}
+    .tp-step span{display:block;font-size:12px;color:#6b7280;line-height:1.35}
+    .tp-list{display:grid;gap:10px}
+    .tp-item{border:1px solid #eee;border-radius:15px;padding:13px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+    .tp-item b{display:block;margin-bottom:4px}
+    .tp-item small{color:#6b7280;line-height:1.35}
+    .tp-status{display:inline-flex;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900;background:#fff7ed;color:#c2410c}
+    .tp-status.ok{background:#ecfdf5;color:#047857}
+    .tp-alert{border:1px solid #fed7aa;background:#fff7ed;color:#7c2d12;border-radius:16px;padding:12px;font-size:13px;line-height:1.45;margin-bottom:14px}
+    @media(max-width:760px){
+      .tp-panel{border-radius:18px}
+      .tp-body{padding:15px}
+      .tp-grid,.tp-choice,.tp-steps{grid-template-columns:1fr}
+      .tp-item{display:block}
+      .tp-btns{margin-top:10px}
+    }
+
   </style>
 </head>
 <body>
@@ -2100,6 +2157,362 @@ function escapeHTML(v){
     chooseRegisterRole('buyer');
     setTimeout(refreshAccountFlow,300);
   });
+})();
+</script>
+
+
+  <div class="tp-modal" id="tpAccountModal" onclick="tpCloseAccount(event)">
+    <section class="tp-panel" onclick="event.stopPropagation()">
+      <div class="tp-head">
+        <div>
+          <h2 id="tpTitle">Akun TANI PRO</h2>
+          <p id="tpSubtitle">Daftar atau login dulu. Setelah itu baru masuk dashboard akun.</p>
+        </div>
+        <button class="tp-close" onclick="tpCloseAccount()">×</button>
+      </div>
+
+      <div class="tp-body">
+        <div id="tpAuthBox">
+          <div class="tp-auth-tabs">
+            <button id="tpLoginTabBtn" class="active" onclick="tpShowAuth('login')">Masuk</button>
+            <button id="tpRegisterTabBtn" onclick="tpShowAuth('register')">Daftar</button>
+          </div>
+
+          <form id="tpLoginForm" class="tp-form" onsubmit="tpLogin(event)">
+            <div class="tp-alert">Masukkan email/WA yang sudah pernah didaftarkan.</div>
+            <div class="tp-field">
+              <label>Email / WhatsApp</label>
+              <input id="tpLoginId" placeholder="email@domain.com atau 0812xxxx" required>
+            </div>
+            <div class="tp-field">
+              <label>Password</label>
+              <input id="tpLoginPass" type="password" placeholder="Password" required>
+            </div>
+            <div class="tp-btns">
+              <button class="tp-btn primary" type="submit">Masuk</button>
+              <button class="tp-btn" type="button" onclick="tpShowAuth('register')">Belum punya akun? Daftar</button>
+            </div>
+          </form>
+
+          <form id="tpRegisterForm" class="tp-form" style="display:none" onsubmit="tpRegister(event)">
+            <div class="tp-alert">Pilih jenis akun. Buyer untuk membeli / RFQ. Supplier untuk jual produk dan verifikasi perusahaan.</div>
+            <div class="tp-choice">
+              <button type="button" id="tpChooseBuyer" class="active" onclick="tpChooseRole('buyer')">Buyer / Pembeli<small>Cari produk, kirim RFQ, pantau inquiry.</small></button>
+              <button type="button" id="tpChooseSupplier" onclick="tpChooseRole('supplier')">Supplier / Penjual<small>Ajukan perusahaan, tunggu verifikasi, upload produk.</small></button>
+            </div>
+            <input id="tpRegRole" type="hidden" value="buyer">
+            <div class="tp-grid">
+              <div class="tp-field"><label>Nama Lengkap</label><input id="tpRegName" required></div>
+              <div class="tp-field"><label>Email</label><input id="tpRegEmail" type="email" required></div>
+              <div class="tp-field"><label>WhatsApp</label><input id="tpRegPhone" required></div>
+              <div class="tp-field"><label>Password</label><input id="tpRegPass" type="password" required></div>
+            </div>
+            <div class="tp-btns">
+              <button class="tp-btn primary" type="submit">Daftar & Masuk</button>
+              <button class="tp-btn" type="button" onclick="tpShowAuth('login')">Sudah punya akun? Masuk</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="tpDashboard" class="tp-dashboard">
+          <div class="tp-card">
+            <h3 id="tpWelcome">Dashboard</h3>
+            <div class="tp-steps" id="tpSteps"></div>
+            <div class="tp-btns" id="tpQuickActions"></div>
+          </div>
+
+          <div class="tp-tabs">
+            <button id="tpTabProfile" class="active" onclick="tpShowDash('profile')">👤 Profil</button>
+            <button id="tpTabCompany" onclick="tpShowDash('company')">🏢 Perusahaan</button>
+            <button id="tpTabProducts" onclick="tpShowDash('products')">📦 Produk</button>
+            <button id="tpTabRfq" onclick="tpShowDash('rfq')">💬 RFQ</button>
+          </div>
+
+          <div id="tpPanelProfile" class="tp-card">
+            <h3>Profil Akun</h3>
+            <div class="tp-grid">
+              <div class="tp-field"><label>Nama</label><input id="tpProfileName"></div>
+              <div class="tp-field"><label>Email</label><input id="tpProfileEmail"></div>
+              <div class="tp-field"><label>WhatsApp</label><input id="tpProfilePhone"></div>
+              <div class="tp-field"><label>Role</label><select id="tpProfileRole"><option value="buyer">Buyer</option><option value="supplier">Supplier</option></select></div>
+            </div>
+            <div class="tp-btns">
+              <button class="tp-btn primary" onclick="tpSaveProfile()">Simpan Profil</button>
+              <button class="tp-btn" onclick="tpLogout()">Logout</button>
+            </div>
+          </div>
+
+          <div id="tpPanelCompany" class="tp-card" style="display:none">
+            <h3>Data Perusahaan Supplier</h3>
+            <p>Status: <span class="tp-status" id="tpSupplierStatus">PENDING</span></p>
+            <div class="tp-grid">
+              <div class="tp-field"><label>Nama Perusahaan</label><input id="tpCompanyName"></div>
+              <div class="tp-field"><label>Bidang Produk</label><input id="tpCompanyProduct" placeholder="Traktor, pompa, spare part..."></div>
+              <div class="tp-field"><label>Alamat</label><textarea id="tpCompanyAddress"></textarea></div>
+              <div class="tp-field"><label>Deskripsi</label><textarea id="tpCompanyDesc"></textarea></div>
+            </div>
+            <div class="tp-btns">
+              <button class="tp-btn green" onclick="tpSubmitSupplier()">Simpan & Ajukan Verifikasi</button>
+            </div>
+          </div>
+
+          <div id="tpPanelProducts" class="tp-card" style="display:none">
+            <h3>Produk Saya</h3>
+            <div class="tp-grid">
+              <div class="tp-field"><label>Nama Produk</label><input id="tpProdName" placeholder="Traktor 4WD 50HP"></div>
+              <div class="tp-field"><label>Kategori</label><input id="tpProdCat" placeholder="tractor / pump / harvester"></div>
+              <div class="tp-field"><label>Harga</label><input id="tpProdPrice" placeholder="Rp / USD"></div>
+              <div class="tp-field"><label>MOQ</label><input id="tpProdMoq" placeholder="MOQ: 1 set"></div>
+            </div>
+            <div class="tp-btns">
+              <button class="tp-btn primary" onclick="tpAddProduct()">Tambah Produk</button>
+            </div>
+            <div class="tp-list" id="tpProductList"></div>
+          </div>
+
+          <div id="tpPanelRfq" class="tp-card" style="display:none">
+            <h3>RFQ / Request Quotation</h3>
+            <div class="tp-grid">
+              <div class="tp-field"><label>Produk yang dicari</label><input id="tpRfqProduct" placeholder="Contoh: traktor 50 HP"></div>
+              <div class="tp-field"><label>Jumlah</label><input id="tpRfqQty" placeholder="Contoh: 3 unit"></div>
+              <div class="tp-field"><label>Catatan</label><textarea id="tpRfqNote" placeholder="Spesifikasi, lokasi pengiriman, target harga..."></textarea></div>
+              <div class="tp-field"><label>Kontak</label><input id="tpRfqContact" placeholder="WA / email"></div>
+            </div>
+            <div class="tp-btns">
+              <button class="tp-btn primary" onclick="tpAddRfq()">Kirim RFQ</button>
+            </div>
+            <div class="tp-list" id="tpRfqList"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+
+<script>
+// TANI PRO WORKING ACCOUNT SCRIPT
+(function(){
+  const K_USERS='tp_users';
+  const K_CURRENT='tp_current_user';
+  const K_PRODUCTS='tp_products';
+  const K_RFQ='tp_rfqs';
+
+  function read(k,f){try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(f));}catch(e){return f}}
+  function write(k,v){localStorage.setItem(k,JSON.stringify(v))}
+  function val(id){const e=document.getElementById(id);return e?e.value.trim():''}
+  function set(id,v){const e=document.getElementById(id);if(e)e.value=v||''}
+  function current(){return read(K_CURRENT,null)}
+  function users(){return read(K_USERS,[])}
+
+  window.openAccountCenter=function(){
+    const modal=document.getElementById('tpAccountModal');
+    if(!modal) return alert('Modul akun belum ada.');
+    modal.classList.add('show');
+    modal.style.display='flex';
+    if(current()) tpRenderDashboard();
+    else tpShowAuth('login');
+  };
+
+  window.tpCloseAccount=function(e){
+    if(e && e.target && e.target.id!=='tpAccountModal') return;
+    const modal=document.getElementById('tpAccountModal');
+    if(modal){modal.classList.remove('show');modal.style.display='none'}
+  };
+
+  window.tpShowAuth=function(mode){
+    document.getElementById('tpAuthBox').style.display='block';
+    document.getElementById('tpDashboard').classList.remove('show');
+    document.getElementById('tpLoginForm').style.display=mode==='login'?'grid':'none';
+    document.getElementById('tpRegisterForm').style.display=mode==='register'?'grid':'none';
+    document.getElementById('tpLoginTabBtn').classList.toggle('active',mode==='login');
+    document.getElementById('tpRegisterTabBtn').classList.toggle('active',mode==='register');
+    document.getElementById('tpTitle').textContent=mode==='login'?'Masuk Akun':'Daftar Akun';
+    document.getElementById('tpSubtitle').textContent=mode==='login'?'Masuk dulu untuk membuka dashboard akun.':'Daftar sebagai Buyer atau Supplier.';
+  };
+
+  window.tpChooseRole=function(role){
+    document.getElementById('tpRegRole').value=role;
+    document.getElementById('tpChooseBuyer').classList.toggle('active',role==='buyer');
+    document.getElementById('tpChooseSupplier').classList.toggle('active',role==='supplier');
+  };
+
+  window.tpRegister=function(e){
+    e.preventDefault();
+    const u={
+      id:'USER-'+Date.now(),
+      role:val('tpRegRole')||'buyer',
+      name:val('tpRegName'),
+      email:val('tpRegEmail'),
+      phone:val('tpRegPhone'),
+      password:val('tpRegPass'),
+      company:'',
+      product:'',
+      address:'',
+      desc:'',
+      supplierStatus:'none',
+      createdAt:new Date().toISOString()
+    };
+    if(!u.name||!u.email||!u.phone||!u.password) return alert('Semua data daftar wajib diisi.');
+    const list=users();
+    if(list.some(x=>x.email===u.email || x.phone===u.phone)) return alert('Email/WhatsApp sudah terdaftar. Silakan login.');
+    list.unshift(u); write(K_USERS,list); write(K_CURRENT,u);
+    tpRenderDashboard();
+    if(u.role==='supplier'){ tpShowDash('company'); alert('Akun supplier dibuat. Isi data perusahaan lalu ajukan verifikasi.'); }
+    else { tpShowDash('profile'); alert('Akun buyer dibuat. Lengkapi profil atau kirim RFQ.'); }
+  };
+
+  window.tpLogin=function(e){
+    e.preventDefault();
+    const id=val('tpLoginId'), pass=val('tpLoginPass');
+    const u=users().find(x=>(x.email===id || x.phone===id) && x.password===pass);
+    if(!u) return alert('Login gagal. Akun belum ada atau password salah. Klik Daftar jika belum punya akun.');
+    write(K_CURRENT,u);
+    tpRenderDashboard();
+    alert('Login berhasil.');
+  };
+
+  window.tpLogout=function(){
+    localStorage.removeItem(K_CURRENT);
+    tpShowAuth('login');
+    alert('Logout berhasil.');
+  };
+
+  window.tpSaveProfile=async function(){
+    let u=current(); if(!u) return openAccountCenter();
+    u={...u,name:val('tpProfileName'),email:val('tpProfileEmail'),phone:val('tpProfilePhone'),role:val('tpProfileRole')||'buyer',updatedAt:new Date().toISOString()};
+    if(!u.name || (!u.email&&!u.phone)) return alert('Nama dan email/WA wajib diisi.');
+    const list=users().map(x=>x.id===u.id?u:x);
+    write(K_USERS,list); write(K_CURRENT,u);
+    try{ if(window.firebaseAdd) await firebaseAdd('users',{...u,password:undefined}); }catch(err){console.warn(err)}
+    tpRenderDashboard();
+    alert('Profil tersimpan.');
+  };
+
+  window.tpSubmitSupplier=async function(){
+    let u=current(); if(!u) return openAccountCenter();
+    u={...u,role:'supplier',company:val('tpCompanyName'),product:val('tpCompanyProduct'),address:val('tpCompanyAddress'),desc:val('tpCompanyDesc'),supplierStatus:'pending',updatedAt:new Date().toISOString()};
+    if(!u.company||!u.product) return alert('Nama perusahaan dan bidang produk wajib diisi.');
+    const list=users().map(x=>x.id===u.id?u:x);
+    write(K_USERS,list); write(K_CURRENT,u);
+    const supplier={id:'SUP-'+u.id,company:u.company,name:u.name,email:u.email,phone:u.phone,product:u.product,address:u.address,description:u.desc,status:'pending',verified:false,ownerUserId:u.id,createdAt:new Date().toISOString()};
+    const old=read('taniProSuppliers',[]);
+    const idx=old.findIndex(s=>s.ownerUserId===u.id || s.email===u.email);
+    if(idx>=0) old[idx]={...old[idx],...supplier}; else old.unshift(supplier);
+    write('taniProSuppliers',old);
+    try{ if(window.firebaseAdd) await firebaseAdd('suppliers',supplier); }catch(err){console.warn(err)}
+    tpRenderDashboard();
+    tpShowDash('company');
+    alert('Data supplier tersimpan dan masuk status PENDING. Admin approve dari klik logo 3x.');
+  };
+
+  window.tpAddProduct=async function(){
+    const u=current(); if(!u) return openAccountCenter();
+    const p={id:'PROD-'+Date.now(),ownerUserId:u.id,supplierCompany:u.company||'',name:val('tpProdName'),category:val('tpProdCat'),price:val('tpProdPrice'),moq:val('tpProdMoq'),status:'pending',createdAt:new Date().toISOString()};
+    if(!p.name) return alert('Nama produk wajib diisi.');
+    const list=read(K_PRODUCTS,[]); list.unshift(p); write(K_PRODUCTS,list);
+    try{ if(window.firebaseAdd) await firebaseAdd('products',p); }catch(err){console.warn(err)}
+    set('tpProdName','');set('tpProdCat','');set('tpProdPrice','');set('tpProdMoq','');
+    tpRenderProducts();
+    tpRenderSteps();
+    alert('Produk tersimpan. Status awal PENDING sampai admin approve.');
+  };
+
+  window.tpAddRfq=async function(){
+    const u=current(); if(!u) return openAccountCenter();
+    const r={id:'RFQ-'+Date.now(),ownerUserId:u.id,product:val('tpRfqProduct'),qty:val('tpRfqQty'),note:val('tpRfqNote'),contact:val('tpRfqContact')||u.phone||u.email,status:'new',createdAt:new Date().toISOString()};
+    if(!r.product) return alert('Produk yang dicari wajib diisi.');
+    const list=read(K_RFQ,[]); list.unshift(r); write(K_RFQ,list);
+    try{ if(window.firebaseAdd) await firebaseAdd('rfqRequests',r); }catch(err){console.warn(err)}
+    set('tpRfqProduct','');set('tpRfqQty','');set('tpRfqNote','');set('tpRfqContact','');
+    tpRenderRfq();
+    alert('RFQ tersimpan.');
+  };
+
+  window.tpShowDash=function(tab){
+    ['profile','company','products','rfq'].forEach(x=>{
+      const p=document.getElementById('tpPanel'+x.charAt(0).toUpperCase()+x.slice(1));
+      const b=document.getElementById('tpTab'+x.charAt(0).toUpperCase()+x.slice(1));
+      if(p) p.style.display=x===tab?'block':'none';
+      if(b) b.classList.toggle('active',x===tab);
+    });
+  };
+
+  function tpRenderDashboard(){
+    const u=current(); if(!u) return tpShowAuth('login');
+    document.getElementById('tpAuthBox').style.display='none';
+    document.getElementById('tpDashboard').classList.add('show');
+    document.getElementById('tpTitle').textContent=u.role==='supplier'?'Dashboard Supplier':'Dashboard Buyer';
+    document.getElementById('tpSubtitle').textContent='Semua pengaturan akun dilakukan dari dashboard ini.';
+    document.getElementById('tpWelcome').textContent=`Halo, ${u.name || 'User'} (${u.role || 'buyer'})`;
+    set('tpProfileName',u.name);set('tpProfileEmail',u.email);set('tpProfilePhone',u.phone);
+    const role=document.getElementById('tpProfileRole'); if(role) role.value=u.role||'buyer';
+    set('tpCompanyName',u.company);set('tpCompanyProduct',u.product);set('tpCompanyAddress',u.address);set('tpCompanyDesc',u.desc);
+    const st=document.getElementById('tpSupplierStatus');
+    if(st){st.textContent=(u.supplierStatus||'none').toUpperCase();st.classList.toggle('ok',['approved','verified'].includes((u.supplierStatus||'').toLowerCase()))}
+    tpRenderSteps(); tpRenderProducts(); tpRenderRfq();
+  }
+
+  function tpRenderSteps(){
+    const u=current(); if(!u) return;
+    const box=document.getElementById('tpSteps'); if(!box) return;
+    const products=read(K_PRODUCTS,[]).filter(p=>p.ownerUserId===u.id);
+    const hasProfile=!!(u.name&&(u.email||u.phone));
+    const hasCompany=!!(u.company&&u.product);
+    const isSupplier=u.role==='supplier';
+    const steps=isSupplier?[
+      ['1. Profil',hasProfile?'done':'active',hasProfile?'OK':'Isi profil dulu.'],
+      ['2. Perusahaan',hasCompany?'done':'active',hasCompany?'OK':'Isi data perusahaan.'],
+      ['3. Verifikasi',u.supplierStatus==='pending'?'active':(['approved','verified'].includes(u.supplierStatus)?'done':''),u.supplierStatus==='pending'?'Menunggu admin.':'Ajukan supplier.'],
+      ['4. Produk',products.length?'done':'active',products.length+' produk tersimpan.']
+    ]:[
+      ['1. Profil',hasProfile?'done':'active',hasProfile?'OK':'Isi profil dulu.'],
+      ['2. Cari Produk','','Gunakan search/kategori.'],
+      ['3. Kirim RFQ','','Buat permintaan penawaran.'],
+      ['4. Pantau Inquiry','','Cek daftar RFQ.']
+    ];
+    box.innerHTML=steps.map(s=>`<div class="tp-step ${s[1]}"><b>${s[0]}</b><span>${s[2]}</span></div>`).join('');
+    const q=document.getElementById('tpQuickActions');
+    if(q){
+      q.innerHTML=isSupplier?
+        `<button class="tp-btn primary" onclick="tpShowDash('profile')">Isi Profil</button><button class="tp-btn green" onclick="tpShowDash('company')">Ajukan Supplier</button><button class="tp-btn dark" onclick="tpShowDash('products')">Tambah Produk</button><button class="tp-btn" onclick="tpLogout()">Logout</button>`:
+        `<button class="tp-btn primary" onclick="tpShowDash('rfq')">Buat RFQ</button><button class="tp-btn green" onclick="tpShowDash('profile')">Lengkapi Profil</button><button class="tp-btn" onclick="tpLogout()">Logout</button>`;
+    }
+  }
+
+  function tpRenderProducts(){
+    const u=current(); const box=document.getElementById('tpProductList'); if(!u||!box)return;
+    const list=read(K_PRODUCTS,[]).filter(p=>p.ownerUserId===u.id);
+    box.innerHTML=list.length?list.map(p=>`<div class="tp-item"><div><b>${p.name}</b><small>${p.category||'-'} · ${p.price||'-'} · ${p.moq||'-'} · Status: ${p.status}</small></div></div>`).join(''):'<div class="tp-item"><div><b>Belum ada produk</b><small>Isi form produk lalu klik Tambah Produk.</small></div></div>';
+  }
+
+  function tpRenderRfq(){
+    const u=current(); const box=document.getElementById('tpRfqList'); if(!u||!box)return;
+    const list=read(K_RFQ,[]).filter(r=>r.ownerUserId===u.id);
+    box.innerHTML=list.length?list.map(r=>`<div class="tp-item"><div><b>${r.product}</b><small>Qty: ${r.qty||'-'} · Kontak: ${r.contact||'-'} · Status: ${r.status}</small></div></div>`).join(''):'<div class="tp-item"><div><b>Belum ada RFQ</b><small>Isi form RFQ lalu klik Kirim RFQ.</small></div></div>';
+  }
+
+  window.openRFQModalClean=function(){
+    openAccountCenter();
+    setTimeout(()=>tpShowDash('rfq'),80);
+  };
+
+  function bindButtons(){
+    document.querySelectorAll('a,button').forEach(el=>{
+      const t=(el.textContent||'').toLowerCase();
+      if(t.includes('akun saya')) el.onclick=function(e){e.preventDefault();openAccountCenter();};
+      if(t.includes('quotation') && el.classList.contains('pill-action')) el.onclick=function(e){e.preventDefault();openRFQModalClean();};
+    });
+    const logo=document.getElementById('brandLogo')||document.querySelector('.logo-brand');
+    if(logo){
+      let c=0,timer=null;
+      logo.onclick=function(e){
+        e.preventDefault(); c++; clearTimeout(timer); timer=setTimeout(()=>c=0,1200);
+        if(c>=3){c=0;clearTimeout(timer); if(typeof openSupplierAdmin==='function') openSupplierAdmin();}
+      };
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindButtons);
+  else bindButtons();
 })();
 </script>
 
