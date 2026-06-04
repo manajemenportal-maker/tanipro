@@ -335,6 +335,34 @@
     .tp-upload-status{margin-top:10px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;padding:10px 12px;font-size:12px;line-height:1.45;display:none}
     .tp-upload-status.show{display:block}
 
+  
+    /* FRONT PRODUCT CLICKABLE DETAIL */
+    .product{cursor:pointer}
+    .product .photo,.product .title,.product .price,.product .supplier{cursor:pointer}
+    .product-detail-modal{position:fixed;inset:0;background:rgba(17,24,39,.62);z-index:300;display:none;align-items:center;justify-content:center;padding:16px}
+    .product-detail-modal.show{display:flex}
+    .product-detail-panel{width:min(1050px,96vw);max-height:92vh;background:#fff;border-radius:24px;box-shadow:0 28px 80px rgba(0,0,0,.32);overflow:auto}
+    .product-detail-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding:20px 22px;border-bottom:1px solid var(--line);background:linear-gradient(135deg,#fff7ed,#fff)}
+    .product-detail-head h2{margin:0;font-size:25px}
+    .product-detail-head p{margin:6px 0 0;color:#6b7280;font-size:13px}
+    .product-detail-close{border:0;background:#f3f4f6;border-radius:999px;width:42px;height:42px;font-size:24px;cursor:pointer}
+    .product-detail-body{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;padding:20px 22px}
+    .product-detail-mainpic{height:360px;background:#f3f4f6;border-radius:20px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+    .product-detail-mainpic img{width:100%;height:100%;object-fit:cover}
+    .product-detail-mainpic span{font-size:80px}
+    .product-detail-thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+    .product-detail-thumbs img,.product-detail-thumbs video{width:100%;height:80px;object-fit:cover;border-radius:12px;background:#f3f4f6;border:1px solid #eee;cursor:pointer}
+    .product-detail-info h3{margin:0 0 10px;font-size:24px;line-height:1.2}
+    .product-detail-price{font-size:26px;font-weight:900;color:#111;margin:8px 0}
+    .product-detail-meta{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+    .product-detail-meta span{background:#f3f4f6;border-radius:999px;padding:8px 10px;font-size:12px;color:#374151}
+    .product-detail-desc{font-size:14px;line-height:1.6;color:#4b5563;margin:14px 0}
+    .product-detail-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    .product-detail-actions button{border:0;border-radius:999px;padding:13px 16px;font-weight:900;cursor:pointer}
+    .product-detail-actions .primary{background:var(--orange);color:#fff}
+    .product-detail-actions .dark{background:#111827;color:#fff}
+    @media(max-width:760px){.product-detail-body{grid-template-columns:1fr;padding:15px}.product-detail-mainpic{height:250px}.product-detail-thumbs img,.product-detail-thumbs video{height:64px}.product-detail-info h3{font-size:20px}}
+
   </style>
 </head>
 <body>
@@ -3593,6 +3621,190 @@ function escapeHTML(v){
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindEditButtons);
   else bindEditButtons();
+})();
+</script>
+
+
+  <div class="product-detail-modal" id="productDetailModal" onclick="closeProductDetail(event)">
+    <section class="product-detail-panel" onclick="event.stopPropagation()">
+      <div class="product-detail-head">
+        <div>
+          <h2>Detail Produk</h2>
+          <p>Lihat foto, spesifikasi, supplier, dan kirim permintaan penawaran.</p>
+        </div>
+        <button class="product-detail-close" onclick="closeProductDetail()">×</button>
+      </div>
+      <div class="product-detail-body" id="productDetailBody"></div>
+    </section>
+  </div>
+
+
+<script>
+/* FINAL FIX: Produk Halaman Depan Bisa Diklik */
+(function(){
+  function readJSON(key, fallback){
+    try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));}catch(e){return fallback;}
+  }
+  function esc(v){
+    return String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function allProducts(){
+    const supplierProducts = readJSON('tp_products', []);
+    const staticProducts = (window.products || []).map((p,i)=>({
+      id:'STATIC-'+i,
+      name:p.name,
+      category:p.cat || p.category || 'tractor',
+      price:p.price,
+      moq:p.moq,
+      supplierCompany:p.supplier,
+      description:p.name,
+      status:'active',
+      icon:p.icon,
+      isStatic:true
+    }));
+    return [...supplierProducts, ...staticProducts];
+  }
+  function findProductById(id){
+    return allProducts().find(p => String(p.id) === String(id)) || null;
+  }
+  function productIdFromCard(card){
+    if(card.dataset.productId) return card.dataset.productId;
+    const title = (card.querySelector('.title')?.textContent || '').trim();
+    const list = allProducts();
+    const found = list.find(p => (p.name || '').trim() === title);
+    return found ? found.id : '';
+  }
+  function mainImageHTML(p){
+    const photos = p.photoUrls || p.photos || [];
+    const photo = photos[0] || p.photo || '';
+    if(photo) return `<img src="${photo}" alt="${esc(p.name)}">`;
+    if(typeof svgIcon === 'function') return svgIcon(p.icon || p.category || 'tractor');
+    return '<span>🚜</span>';
+  }
+  function thumbHTML(p){
+    const photos = p.photoUrls || p.photos || [];
+    const imgs = photos.slice(0,3).map((src,i)=>`<img src="${src}" alt="Foto ${i+1}" onclick="setProductMainImage('${src.replace(/'/g,"\\'")}')">`).join('');
+    const video = p.videoUrl || p.video || '';
+    const vid = video ? `<video src="${video}" muted controls></video>` : '';
+    return imgs + vid;
+  }
+  window.setProductMainImage = function(src){
+    const box = document.getElementById('productDetailMainPic');
+    if(box) box.innerHTML = `<img src="${src}" alt="Foto Produk">`;
+  };
+  window.openProductDetail = function(productId){
+    const p = findProductById(productId);
+    if(!p) return alert('Detail produk belum tersedia.');
+    const body = document.getElementById('productDetailBody');
+    const modal = document.getElementById('productDetailModal');
+    if(!body || !modal) return;
+    const thumbs = thumbHTML(p);
+    body.innerHTML = `
+      <div>
+        <div class="product-detail-mainpic" id="productDetailMainPic">${mainImageHTML(p)}</div>
+        ${thumbs ? `<div class="product-detail-thumbs">${thumbs}</div>` : ''}
+      </div>
+      <div class="product-detail-info">
+        <h3>${esc(p.name || 'Produk Supplier')}</h3>
+        <div class="product-detail-price">${esc(p.price || 'Hubungi supplier')}</div>
+        <div class="product-detail-meta">
+          <span>Kategori: ${esc(p.category || p.cat || '-')}</span>
+          <span>${esc(p.moq || 'MOQ: -')}</span>
+          <span>Supplier: ${esc(p.supplierCompany || p.company || p.supplier || 'TANI PRO Supplier')}</span>
+          <span>Status: ${esc((p.status || 'active').toUpperCase())}</span>
+          ${p.location ? `<span>Lokasi: ${esc(p.location)}</span>` : ''}
+          ${p.stock ? `<span>Stok: ${esc(p.stock)}</span>` : ''}
+          ${p.condition ? `<span>Kondisi: ${esc(p.condition)}</span>` : ''}
+          ${p.warranty ? `<span>Garansi: ${esc(p.warranty)}</span>` : ''}
+        </div>
+        <div class="product-detail-desc">${esc(p.description || p.name || 'Belum ada deskripsi produk.')}</div>
+        <div class="product-detail-actions">
+          <button class="primary" onclick="openRFQFromProduct('${String(p.id).replace(/'/g,"\\'")}')">💬 Request Quotation</button>
+          <button class="dark" onclick="alert('Chat supplier nanti kita sambungkan ke inquiry / WhatsApp.')">Chat Supplier</button>
+        </div>
+      </div>
+    `;
+    modal.classList.add('show');
+    modal.style.display = 'flex';
+  };
+  window.closeProductDetail = function(e){
+    if(e && e.target && e.target.id !== 'productDetailModal') return;
+    const modal = document.getElementById('productDetailModal');
+    if(modal){
+      modal.classList.remove('show');
+      modal.style.display = 'none';
+    }
+  };
+  window.openRFQFromProduct = function(productId){
+    const p = findProductById(productId);
+    closeProductDetail();
+    if(typeof openRFQModalClean === 'function'){
+      openRFQModalClean();
+      setTimeout(()=>{
+        const prod = document.getElementById('tpRfqProduct');
+        const note = document.getElementById('tpRfqNote');
+        if(prod && p) prod.value = p.name || '';
+        if(note && p) note.value = `Saya ingin penawaran untuk ${p.name || 'produk ini'} dari ${p.supplierCompany || p.company || p.supplier || 'supplier'}.`;
+      },250);
+    }else{
+      alert('RFQ untuk: '+(p?.name || productId));
+    }
+  };
+  function bindProductClicks(){
+    document.querySelectorAll('.product').forEach(card=>{
+      if(card.dataset.clickBound === 'yes') return;
+      card.dataset.clickBound = 'yes';
+      if(!card.dataset.productId){
+        const id = productIdFromCard(card);
+        if(id) card.dataset.productId = id;
+      }
+      card.addEventListener('click', function(e){
+        if(e.target.closest('button,a,input,select,textarea')) return;
+        const id = productIdFromCard(card);
+        if(id) openProductDetail(id);
+      });
+      const photo = card.querySelector('.photo');
+      const title = card.querySelector('.title');
+      const price = card.querySelector('.price');
+      [photo,title,price].forEach(el=>{
+        if(el){
+          el.onclick = function(e){
+            e.stopPropagation();
+            const id = productIdFromCard(card);
+            if(id) openProductDetail(id);
+          };
+        }
+      });
+      const quote = card.querySelector('.quote');
+      if(quote){
+        quote.onclick = function(e){
+          e.stopPropagation();
+          const id = productIdFromCard(card);
+          openRFQFromProduct(id);
+        };
+      }
+    });
+  }
+  const oldRenderProducts = window.renderProducts;
+  if(typeof oldRenderProducts === 'function'){
+    window.renderProducts = function(list){
+      oldRenderProducts(list);
+      setTimeout(bindProductClicks,80);
+    };
+  }
+  const oldRefresh = window.tpRefreshMarketplaceProducts;
+  if(typeof oldRefresh === 'function'){
+    window.tpRefreshMarketplaceProducts = function(){
+      oldRefresh();
+      setTimeout(bindProductClicks,80);
+    };
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded',()=>setTimeout(bindProductClicks,500));
+  }else{
+    setTimeout(bindProductClicks,500);
+  }
+  setInterval(bindProductClicks,1500);
 })();
 </script>
 
