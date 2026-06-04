@@ -100,6 +100,10 @@
     .admin-note{margin-top:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:16px;padding:13px;color:#7c2d12;font-size:13px;line-height:1.45}
     @media(max-width:760px){.admin-fab{right:12px;bottom:176px;padding:11px 13px;font-size:12px}.admin-panel{padding:15px}.admin-stats{grid-template-columns:repeat(2,1fr)}.admin-toolbar input,.admin-toolbar select{min-width:100%;width:100%}}
 
+  
+    .firebase-badge{position:fixed;left:18px;bottom:18px;background:#ecfdf5;color:#047857;border:1px solid #bbf7d0;border-radius:999px;padding:10px 13px;font-size:12px;font-weight:900;z-index:82;box-shadow:0 12px 28px rgba(0,0,0,.12)}
+    @media(max-width:760px){.firebase-badge{left:10px;bottom:72px;font-size:11px;padding:8px 10px}}
+
   </style>
 </head>
 <body>
@@ -176,6 +180,246 @@
     </div>
   </div>
   <div class="toast" id="toast">Tersimpan</div>
+
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-analytics.js";
+  import {
+    getFirestore,
+    collection,
+    addDoc,
+    getDocs,
+    updateDoc,
+    deleteDoc,
+    doc,
+    serverTimestamp,
+    query,
+    orderBy
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDxH7lAHcRYtTzGqeKTjsZ7Xxpt9DaRwJc",
+    authDomain: "kementan-c3d5c.firebaseapp.com",
+    projectId: "kementan-c3d5c",
+    storageBucket: "kementan-c3d5c.firebasestorage.app",
+    messagingSenderId: "1052617329310",
+    appId: "1:1052617329310:web:cf28ae8bc0b13984e8c98f",
+    measurementId: "G-DZHDXPHQKG"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+
+  window.taniProFirebase = {
+    app,
+    analytics,
+    db,
+    collection,
+    addDoc,
+    getDocs,
+    updateDoc,
+    deleteDoc,
+    doc,
+    serverTimestamp,
+    query,
+    orderBy,
+    enabled: true
+  };
+
+  console.log("TANI PRO Firebase connected:", firebaseConfig.projectId);
+
+/* ============================
+   FIREBASE HYBRID DATABASE LAYER
+   Koleksi yang dipakai:
+   - suppliers
+   - rfqRequests
+   - products
+   ============================ */
+
+async function firebaseReady(){
+  for(let i=0;i<20;i++){
+    if(window.taniProFirebase && window.taniProFirebase.enabled) return true;
+    await new Promise(r=>setTimeout(r,150));
+  }
+  return false;
+}
+
+async function firebaseAdd(collectionName,data){
+  if(!(await firebaseReady())) throw new Error('Firebase belum siap');
+  const f=window.taniProFirebase;
+  return await f.addDoc(f.collection(f.db,collectionName),{
+    ...data,
+    createdAtFirebase:f.serverTimestamp(),
+    updatedAtFirebase:f.serverTimestamp()
+  });
+}
+
+async function firebaseList(collectionName){
+  if(!(await firebaseReady())) return [];
+  const f=window.taniProFirebase;
+  const snap=await f.getDocs(f.collection(f.db,collectionName));
+  return snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+
+async function firebaseUpdate(collectionName,id,data){
+  if(!(await firebaseReady())) throw new Error('Firebase belum siap');
+  const f=window.taniProFirebase;
+  return await f.updateDoc(f.doc(f.db,collectionName,id),{
+    ...data,
+    updatedAtFirebase:f.serverTimestamp()
+  });
+}
+
+async function firebaseDelete(collectionName,id){
+  if(!(await firebaseReady())) throw new Error('Firebase belum siap');
+  const f=window.taniProFirebase;
+  return await f.deleteDoc(f.doc(f.db,collectionName,id));
+}
+
+async function syncLocalSuppliersToFirebase(){
+  const local=getStoredSuppliers();
+  if(!local.length) return alert('Belum ada data supplier lokal untuk disinkronkan.');
+  let ok=0;
+  for(const s of local){
+    try{
+      await firebaseAdd('suppliers',{...s, source:'local-sync'});
+      ok++;
+    }catch(e){
+      console.error(e);
+    }
+  }
+  alert(ok+' supplier lokal berhasil dikirim ke Firebase.');
+  await loadSuppliersFromFirebase();
+}
+
+async function loadSuppliersFromFirebase(){
+  try{
+    const data=await firebaseList('suppliers');
+    const normalized=data.map((s,i)=>normalizeSupplier(s,i));
+    saveStoredSuppliers(normalized);
+    renderSupplierAdminTable();
+    return normalized;
+  }catch(e){
+    console.error('Load suppliers Firebase gagal:',e);
+    alert('Gagal ambil data Firebase. Cek Firestore Rules dan koneksi internet.');
+    return getStoredSuppliers();
+  }
+}
+
+const originalSetSupplierStatus=setSupplierStatus;
+setSupplierStatus=async function(id,status){
+  try{
+    await firebaseUpdate('suppliers',id,{status,verified:status==='verified'});
+  }catch(e){
+    console.warn('Update Firebase gagal, fallback localStorage:',e);
+  }
+  const list=getStoredSuppliers().map(s=>s.id===id?{...s,status,verified:status==='verified'}:s);
+  saveStoredSuppliers(list);
+  renderSupplierAdminTable();
+};
+
+const originalDeleteSupplier=deleteSupplier;
+deleteSupplier=async function(id){
+  if(!confirm('Hapus supplier ini?')) return;
+  try{
+    await firebaseDelete('suppliers',id);
+  }catch(e){
+    console.warn('Delete Firebase gagal, fallback localStorage:',e);
+  }
+  saveStoredSuppliers(getStoredSuppliers().filter(s=>s.id!==id));
+  renderSupplierAdminTable();
+};
+
+const originalAddDemoSupplier=addDemoSupplier;
+addDemoSupplier=async function(){
+  const data={
+    company:'PT Agro Mesin Nusantara',
+    name:'Budi Santoso',
+    email:'sales@agromesin.co.id',
+    phone:'0812-0000-8888',
+    product:'Traktor roda 4, pompa irigasi, spare part',
+    status:'pending',
+    verified:false,
+    source:'demo',
+    createdAt:new Date().toISOString()
+  };
+  try{
+    const ref=await firebaseAdd('suppliers',data);
+    const list=getStoredSuppliers();
+    list.unshift({...data,id:ref.id});
+    saveStoredSuppliers(list);
+  }catch(e){
+    console.warn('Firebase gagal, simpan lokal:',e);
+    const list=getStoredSuppliers();
+    list.unshift({...data,id:'SUP-'+Date.now()});
+    saveStoredSuppliers(list);
+  }
+  renderSupplierAdminTable();
+};
+
+const originalOpenSupplierAdmin=openSupplierAdmin;
+openSupplierAdmin=async function(){
+  document.getElementById('supplierAdminDrawer').classList.add('show');
+  renderSupplierAdminTable();
+  await loadSuppliersFromFirebase();
+};
+
+/* Auto-hook semua form pendaftaran supplier/RFQ yang ada di halaman */
+document.addEventListener('submit',async function(e){
+  const form=e.target;
+  const text=(form.innerText+' '+form.id+' '+form.className).toLowerCase();
+
+  if(text.includes('supplier') || text.includes('pemasok')){
+    e.preventDefault();
+    const fd=new FormData(form);
+    const data=Object.fromEntries(fd.entries());
+    const clean={
+      company:data.company || data.companyName || data.nama || data.name || 'Supplier Baru',
+      name:data.pic || data.contact || data.name || '-',
+      email:data.email || '-',
+      phone:data.phone || data.wa || data.whatsapp || '-',
+      product:data.product || data.products || data.category || '-',
+      status:'pending',
+      verified:false,
+      source:'supplier-form',
+      createdAt:new Date().toISOString()
+    };
+    try{
+      const ref=await firebaseAdd('suppliers',clean);
+      const list=getStoredSuppliers();
+      list.unshift({...clean,id:ref.id});
+      saveStoredSuppliers(list);
+      alert('Pendaftaran supplier berhasil masuk Firebase. Status: Pending review admin.');
+      form.reset();
+      renderSupplierAdminTable();
+    }catch(err){
+      console.error(err);
+      alert('Firebase gagal. Data disimpan lokal sementara.');
+      const list=getStoredSuppliers();
+      list.unshift({...clean,id:'SUP-'+Date.now()});
+      saveStoredSuppliers(list);
+      form.reset();
+    }
+  }
+
+  if(text.includes('rfq') || text.includes('quotation') || text.includes('penawaran')){
+    e.preventDefault();
+    const fd=new FormData(form);
+    const data=Object.fromEntries(fd.entries());
+    try{
+      await firebaseAdd('rfqRequests',{...data,status:'new',createdAt:new Date().toISOString()});
+      alert('RFQ berhasil dikirim ke Firebase.');
+      form.reset();
+    }catch(err){
+      console.error(err);
+      alert('RFQ belum bisa masuk Firebase. Cek rules Firestore.');
+    }
+  }
+});
+
+</script>
 
 <script>
 
@@ -496,6 +740,8 @@ function escapeHTML(v){
           <option value="rejected">Rejected</option>
         </select>
         <button onclick="addDemoSupplier()">+ Demo Supplier</button>
+        <button onclick="loadSuppliersFromFirebase()">Load Firebase</button>
+        <button onclick="syncLocalSuppliersToFirebase()">Sync Local → Firebase</button>
         <button onclick="exportSuppliersCSV()">Export CSV</button>
         <button onclick="clearSupplierData()">Reset Data</button>
       </div>
@@ -522,5 +768,6 @@ function escapeHTML(v){
     </section>
   </div>
 
+<div class="firebase-badge">🔥 Firebase Connected</div>
 </body>
 </html>
