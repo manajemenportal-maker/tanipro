@@ -189,6 +189,14 @@
       .bottom-menu-active-hint{display:none}
     }
 
+  
+    /* Admin direct access: no visible admin button */
+    .admin-mini-access,
+    .admin-fab,
+    .admin-fab.admin-unlocked,
+    #adminMiniAccess,
+    #adminFab{display:none!important}
+
   </style>
 </head>
 <body>
@@ -207,7 +215,7 @@
         </div>
         <button class="pill-action user" type="button" onclick="openAccountCenter()"><span>👤</span><span class="long">Akun Saya</span></button>
         <button class="pill-action primary" type="button" onclick="openRFQModalClean()"><span>💬</span><span class="long">Quotation</span></button>
-        <button class="admin-mini-access" id="adminMiniAccess" type="button" onclick="openSupplierAdmin()">⚙️ Admin</button>
+        
       </div>
 
     </div>
@@ -967,7 +975,7 @@ function escapeHTML(v){
 
 </script>
 
-  <button class="admin-fab" id="adminFab" type="button" style="display:none">⚙️ Admin Supplier</button>
+  
 
   <div class="admin-drawer" id="supplierAdminDrawer" onclick="closeSupplierAdmin(event)">
     <section class="admin-panel" onclick="event.stopPropagation()">
@@ -1588,6 +1596,61 @@ function escapeHTML(v){
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindFinalMenu);
   else bindFinalMenu();
+})();
+</script>
+
+
+<script>
+(function(){
+  function bindDirectAdminLogo(){
+    const logo = document.getElementById('brandLogo') || document.querySelector('.logo-brand');
+    if(!logo) return;
+
+    let clicks = 0;
+    let timer = null;
+
+    logo.onclick = function(e){
+      e.preventDefault();
+      clicks++;
+      clearTimeout(timer);
+      timer = setTimeout(function(){ clicks = 0; }, 1200);
+
+      if(clicks >= 3){
+        clicks = 0;
+        clearTimeout(timer);
+        localStorage.setItem('taniProAdminUnlocked','yes');
+
+        if(typeof window.openSupplierAdmin === 'function'){
+          window.openSupplierAdmin();
+        }else{
+          const drawer = document.getElementById('supplierAdminDrawer');
+          if(drawer){
+            drawer.classList.add('show');
+            drawer.style.display = 'flex';
+          }else{
+            alert('Panel Admin Supplier belum ditemukan.');
+          }
+        }
+      }
+    };
+
+    document.querySelectorAll('.admin-mini-access,.admin-fab,#adminMiniAccess,#adminFab').forEach(function(el){
+      el.style.display='none';
+      el.classList.remove('show','admin-unlocked');
+    });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', bindDirectAdminLogo);
+  }else{
+    bindDirectAdminLogo();
+  }
+
+  window.unlockAdminMenu = function(){
+    if(typeof window.openSupplierAdmin === 'function'){
+      window.openSupplierAdmin();
+    }
+  };
 })();
 </script>
 
